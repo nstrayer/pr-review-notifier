@@ -119,6 +119,7 @@ export async function checkForPRs(): Promise<PR[]> {
     console.error('Error checking PRs:', error);
   }
   
+  // Update pendingPRs in store
   store.set('pendingPRs', pendingPRs);
   
   // Update the badge count on the application icon

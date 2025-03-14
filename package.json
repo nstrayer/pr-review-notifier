@@ -16,8 +16,8 @@
   "license": "ISC",
   "description": "A macOS toolbar app to notify about PRs that need review",
   "dependencies": {
-    "@octokit/rest": "^21.1.1",
-    "electron-store": "^10.0.1",
+    "@octokit/rest": "^19.0.13",
+    "electron-store": "^8.1.0",
     "node-notifier": "^10.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
