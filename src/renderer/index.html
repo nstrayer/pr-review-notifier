@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+    <title>PR Notifier</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            -webkit-app-region: drag;
+            background-color: white;
+        }
+        #root {
+            height: 100vh;
+            background-color: white;
+        }
+        input, button, select, textarea {
+            -webkit-app-region: no-drag;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script src="../renderer.js"></script>
+</body>
+</html>
