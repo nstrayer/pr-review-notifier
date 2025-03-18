@@ -5,7 +5,7 @@
   "scripts": {
     "start": "electron .",
     "start-dev": "NODE_ENV=development electron .",
-    "build": "tsc -p . && webpack && node copyHtml.js",
+    "build": "tsc -p . && webpack && node copyHtml.js && node copyAssets.js",
     "dev": "npm run build && npm run start-dev",
     "pack": "electron-builder --dir",
     "electron": "^35.0.1",
@@ -17,6 +17,7 @@
   "description": "A macOS toolbar app to notify about PRs that need review",
   "dependencies": {
     "@octokit/rest": "^19.0.13",
+    "date-fns": "^4.1.0",
     "electron-store": "^8.1.0",
     "node-notifier": "^10.0.1",
     "react": "^19.0.0",
@@ -27,11 +28,17 @@
     "@types/node-notifier": "^8.0.5",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
+    "autoprefixer": "^10.4.21",
+    "css-loader": "^7.1.2",
     "dotenv": "^16.4.7",
     "dotenv-cli": "^8.0.0",
     "electron": "^25.0.0",
     "electron-builder": "^25.1.8",
     "electron-notarize": "^1.2.2",
+    "postcss": "^8.5.3",
+    "postcss-loader": "^8.1.1",
+    "style-loader": "^4.0.0",
+    "tailwindcss": "^3.3.5",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.2",
     "webpack": "^5.98.0",
@@ -48,12 +55,6 @@
           "arch": [
             "arm64"
           ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "arm64"
-          ]
         }
       ],
       "icon": "build/icon.icns",
@@ -61,10 +62,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
-      "notarize": {
-        "teamId": "YOUR_TEAM_ID"
-      }
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "afterSign": null,
     "files": [

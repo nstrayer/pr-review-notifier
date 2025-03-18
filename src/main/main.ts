@@ -1,5 +1,6 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain } from 'electron';
+import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, Notification, MenuItemConstructorOptions } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { checkForPRs } from '../utils/github';
 import Store from 'electron-store';
 
@@ -10,7 +11,12 @@ interface StoreSchema {
   checkInterval: number;
   pendingPRs: any[];
   notifiedPRs: number[];
+  dismissedPRs: number[];
   autoLaunch: boolean;
+  settingsPrompted: boolean;
+  enableNotifications: boolean;
+  devShowSamplePRs: boolean; // For development mode only
+  lastQueryTime: number; // Timestamp of the last GitHub API query
 }
 
 const store = new Store<StoreSchema>();
@@ -22,11 +28,17 @@ const schema: StoreSchema = {
   checkInterval: 15,
   pendingPRs: [],
   notifiedPRs: [],
+  dismissedPRs: [],
   autoLaunch: true,
+  settingsPrompted: false,
+  enableNotifications: true,
+  devShowSamplePRs: false, // For development mode only
+  lastQueryTime: 0, // Default to 0 (no queries yet)
 };
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let trayContextMenu: Menu | null = null;
 let isQuitting = false;
 
 // Check interval in minutes
@@ -40,10 +52,13 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
+      // Enable smooth scrolling
+      enableBlinkFeatures: 'SmoothScrolling',
     },
     // Make it a proper menu bar dropdown window
     titleBarStyle: process.platform === 'darwin' ? 'customButtonsOnHover' : 'hidden',
-    resizable: false,
+    // Enable resize for better scrolling behavior
+    resizable: true,
     skipTaskbar: true,
     frame: false,
     transparent: false,
@@ -51,23 +66,50 @@ function createWindow() {
     // Critical for menubar apps - this ensures the window will stay above other windows
     alwaysOnTop: true,
     // Hide from dock and task switcher
-    type: 'panel', // Important for macOS to keep it from showing in the dock
+    type: process.platform === 'darwin' ? 'panel' : undefined, // Panel only on macOS to prevent scrolling issues
     // Add shadow for better visibility
     hasShadow: true,
+    // Add these settings for better menubar app behavior
+    fullscreenable: false,
+    minimizable: false,
+    maximizable: false,
+    // This is critical for menubar apps
+    focusable: true,
   });
 
   const htmlPath = path.join(__dirname, '../renderer/index.html');
   console.log('Loading HTML from:', htmlPath);
   
+  // Set the preload script
+  mainWindow?.webContents.once('dom-ready', () => {
+    // Inject custom CSS to fix scrolling issues
+    mainWindow?.webContents.insertCSS(`
+      ::-webkit-scrollbar {
+        width: 10px !important;
+        height: 10px !important;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #888 !important;
+        border-radius: 5px !important;
+      }
+      #scrollable-content {
+        -webkit-app-region: no-drag !important;
+      }
+      .overflow-auto, .overflow-y-auto {
+        -webkit-app-region: no-drag !important;
+      }
+    `);
+  });
+  
   // Add error handler
-  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+  mainWindow?.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
     console.error('Failed to load:', errorCode, errorDescription);
   });
   
-  mainWindow.loadFile(htmlPath);
+  mainWindow?.loadFile(htmlPath);
   
   // Handle window load completion
-  mainWindow.webContents.on('did-finish-load', () => {
+  mainWindow?.webContents.on('did-finish-load', () => {
     console.log('Window content loaded successfully');
     
     // Only open DevTools in development
@@ -75,11 +117,12 @@ function createWindow() {
       mainWindow?.webContents.openDevTools({ mode: 'detach' });
     }
     
-    // Add Escape key handler to close the window
+    // Add Escape key handler to close the window without beep sound
     if (mainWindow) {
       mainWindow.webContents.on('before-input-event', (event, input) => {
         if (input.type === 'keyDown' && input.key === 'Escape') {
           console.log('Escape key pressed, hiding window');
+          event.preventDefault(); // Prevent default behavior (beep sound)
           mainWindow?.hide();
         }
       });
@@ -95,12 +138,17 @@ function createWindow() {
     return true;
   });
 
-  // Hide the window when it loses focus
-  mainWindow.on('blur', () => {
-    if (!mainWindow?.webContents.isDevToolsOpened()) {
-      mainWindow?.hide();
-    }
-  });
+  // // Hide the window when it loses focus
+  // mainWindow.on('blur', () => {
+  //   if (!mainWindow?.webContents.isDevToolsOpened()) {
+  //     // Add a small delay to prevent immediate hiding when clicking
+  //     setTimeout(() => {
+  //       if (mainWindow && mainWindow.isVisible()) {
+  //         mainWindow.hide();
+  //       }
+  //     }, 100);
+  //   }
+  // });
 }
 
 function createTray() {
@@ -143,7 +191,19 @@ function createTray() {
   
   // Create the tray with our icon
   try {
-    tray = new Tray(path.join(__dirname, "./assets/tray-icon-template.png"));
+    // Path to assets relative to the app root, not the build directory
+    const iconPath = path.join(__dirname, '../assets', 'tray-icon-template.png');
+    console.log('Trying to load icon from:', iconPath);
+    
+    // Load the PNG file as a native image
+    const trayIcon = nativeImage.createFromPath(iconPath);
+    
+    // Set as template image for macOS
+    if (process.platform === 'darwin') {
+      trayIcon.setTemplateImage(true);
+    }
+    
+    tray = new Tray(trayIcon);
     console.log('Created tray with regular icon');
   } catch (e) {
     console.error('Failed to create tray with regular icon:', e);
@@ -163,42 +223,48 @@ function createTray() {
   tray.setToolTip('PR Notifier');
   console.log('Tray icon created successfully!');
 
-  // Create the context menu but don't set it as the default
+  // Initialize the context menu
   updateTrayMenu();
   
-  // Important: Set the context menu to null to prevent automatic popup
-  // This ensures only explicit right-clicks will show the menu
-  tray.setContextMenu(null);
-  
   // Restore original behavior: Show/hide window when clicking the tray icon
-  if (process.platform === 'darwin') {
-    // On macOS, left click should toggle the window
-    tray.on('click', (event, bounds) => {
-      console.log('Tray icon clicked, toggling window');
-      toggleWindow(bounds);
-    });
-  } else {
-    // Windows and Linux might behave differently, but we'll use the same behavior
-    tray.on('click', (event, bounds) => {
-      console.log('Tray icon clicked, toggling window');
-      toggleWindow(bounds);
-    });
-  }
+  // On macOS, left click should toggle the window
+  tray.on('click', (event, bounds) => {
+    console.log('Tray icon clicked, toggling window');
+    toggleWindow(bounds);
+  });
   
-  // Right click still shows context menu on all platforms
+  // Right click shows the context menu
   tray.on('right-click', (event, bounds) => {
     console.log('Tray icon right-clicked, showing context menu');
-    const contextMenu = buildContextMenu();
-    tray?.popUpContextMenu(contextMenu);
+    if (trayContextMenu) {
+      tray?.popUpContextMenu(trayContextMenu);
+    }
   });
 }
 
 // Separate function to build the context menu
 function buildContextMenu() {
   const pendingPRs = store.get('pendingPRs', []);
-  return Menu.buildFromTemplate([
+  const token = store.get('token', '');
+  const repos = store.get('repos', []);
+  const username = store.get('username', '');
+  const missingSettings = !token || !username || repos.length === 0;
+  const showSamplePRs = store.get('devShowSamplePRs', false);
+  
+  // Log the pending PRs count for debugging
+  console.log(`Building context menu with ${pendingPRs.length} pending PRs`);
+  
+  let menuLabel = '';
+  
+  if (missingSettings && !showSamplePRs) {
+    menuLabel = 'PR Notifier (Setup Required)';
+  } else {
+    menuLabel = `PR Notifier${pendingPRs.length > 0 ? ` (${pendingPRs.length})` : ''}`;
+  }
+  
+  const template = [
     { 
-      label: `PR Notifier${pendingPRs.length > 0 ? ` (${pendingPRs.length})` : ''}`, 
+      label: menuLabel, 
       enabled: false 
     },
     { type: 'separator' },
@@ -232,27 +298,58 @@ function buildContextMenu() {
     }},
     { type: 'separator' },
     { label: 'Quit', click: () => { isQuitting = true; app.quit(); } }
-  ]);
+  ];
+  
+  // Add indicator if in sample mode
+  if (showSamplePRs) {
+    // Insert after "Check Now"
+    template.splice(4, 0, {
+      label: '📝 Sample PR Mode Active',
+      enabled: false
+    });
+  }
+  
+  return Menu.buildFromTemplate(template as MenuItemConstructorOptions[]);
 }
 
-function updateTrayMenu() {
-  // Update the tray title/tooltip, but don't set the context menu
-  // This prevents the menu from showing automatically
+export function updateTrayMenu() {
+  // Update the tray title/tooltip and rebuild the context menu
   const pendingPRs = store.get('pendingPRs', []);
+  const token = store.get('token', '');
+  const repos = store.get('repos', []);
+  const username = store.get('username', '');
+  const missingSettings = !token || !username || repos.length === 0;
+  const showSamplePRs = store.get('devShowSamplePRs', false);
+  
+  // Log current PR count for debugging
+  console.log(`Updating tray menu with ${pendingPRs.length} pending PRs`);
   
   // Update the icon badge on macOS
   if (process.platform === 'darwin') {
-    // Set a visible text label in the menu bar for macOS - this ensures something is visible
-    if (pendingPRs.length > 0) {
-      // Show count with PR prefix
-      tray?.setTitle(`PR: ${pendingPRs.length}`);
+    if (missingSettings && !showSamplePRs) {
+      tray?.setTitle('Setup needed!'); 
+    } else if (pendingPRs.length > 0) {
+      tray?.setTitle(`${pendingPRs.length} reviews`);
     } else {
-      // Show a short text instead of an empty string to ensure visibility
-      tray?.setTitle('PR');
+      tray?.setTitle('No reviews!');
     }
   } else {
     // On Windows/Linux we might update the icon or tooltip instead
-    tray?.setToolTip(`PR Notifier${pendingPRs.length > 0 ? ` (${pendingPRs.length} pending)` : ''}`);
+    if (missingSettings && !showSamplePRs) {
+      tray?.setToolTip('PR Notifier - Setup needed!');
+    } else {
+      tray?.setToolTip(`PR Notifier${pendingPRs.length > 0 ? ` (${pendingPRs.length} pending)` : ''}`);
+    }
+  }
+  
+  // Rebuild the context menu but don't set it as the default click action
+  // This will only be shown on right-click
+  if (tray) {
+    // Create the context menu with updated counts
+    const contextMenu = buildContextMenu();
+    
+    // Just update the instance variable - we'll use it in the right-click handler
+    trayContextMenu = contextMenu;
   }
 }
 
@@ -332,34 +429,98 @@ function showWindow(trayBounds?: Electron.Rectangle) {
   console.log(`Showing window at position x:${x}, y:${y}`);
   mainWindow.setPosition(x, y, false);
   mainWindow.show();
-  mainWindow.focus();
-  
-  // Reset workspaces setting after showing
-  if (process.platform === 'darwin') {
-    setTimeout(() => {
-      try {
-        if (mainWindow) {
-          mainWindow.setVisibleOnAllWorkspaces(false);
-        }
-      } catch (e) {
-        console.error('Error resetting visible on all workspaces:', e);
-      }
-    }, 100); // Short delay to ensure window is visible before changing setting
-  }
+
+  // // Reset workspaces setting after showing
+  // if (process.platform === 'darwin') {
+  //   setTimeout(() => {
+  //     try {
+  //       if (mainWindow) {
+  //         mainWindow.setVisibleOnAllWorkspaces(false);
+  //       }
+  //     } catch (e) {
+  //       console.error('Error resetting visible on all workspaces:', e);
+  //     }
+  //   }, 100);
+  // }
 }
 
 async function startPRChecking() {
-  let interval = store.get('checkInterval', DEFAULT_CHECK_INTERVAL);
-  
   // First check immediately on startup
-  const prs = await checkForPRs();
+  checkSettingsAndPRs();
+  
+  // Setup a function to reschedule the check based on the current interval setting
+  const scheduleNextCheck = () => {
+    // Get the current interval from settings (might have changed)
+    const interval = store.get('checkInterval', DEFAULT_CHECK_INTERVAL);
+    console.log(`Scheduling next PR check in ${interval} minutes`);
+    
+    // Schedule the next check
+    setTimeout(() => {
+      checkSettingsAndPRs().then(() => {
+        // Schedule the next check after this one completes
+        scheduleNextCheck();
+      });
+    }, interval * 60 * 1000);
+  };
+  
+  // Start the scheduling chain
+  scheduleNextCheck();
+}
+
+async function checkSettingsAndPRs() {
+  const token = store.get('token', '');
+  const repos = store.get('repos', []);
+  const username = store.get('username', '');
+  const dismissedPRs = store.get('dismissedPRs', []);
+  const devShowSamplePRs = store.get('devShowSamplePRs', false);
+  const missingSettings = !token || !username || repos.length === 0;
+  
+  console.log(`checkSettingsAndPRs called with ${dismissedPRs.length} dismissed PRs, devMode: ${devShowSamplePRs}`);
+  
+  // Update menu to reflect current state
   updateTrayMenu();
   
-  // Then check periodically
-  setInterval(async () => {
-    await checkForPRs();
-    updateTrayMenu();
-  }, interval * 60 * 1000);
+  // If in dev mode, we can proceed even with missing settings
+  if (!devShowSamplePRs && missingSettings && mainWindow) {
+    // Show a notification if window is not already visible
+    if (!mainWindow.isVisible()) {
+      const notification = new Notification({
+        title: 'PR Notifier Setup Required',
+        body: 'Please configure your GitHub settings to start monitoring pull requests.',
+      });
+      
+      notification.on('click', () => {
+        const trayBounds = tray?.getBounds();
+        showWindow(trayBounds);
+        mainWindow?.webContents.send('show-settings');
+      });
+      
+      notification.show();
+    }
+    
+    // If this is first run or settings were reset, automatically open settings
+    const settingsPrompted = store.get('settingsPrompted', false);
+    if (!settingsPrompted) {
+      store.set('settingsPrompted', true);
+      const trayBounds = tray?.getBounds();
+      showWindow(trayBounds);
+      mainWindow.webContents.send('show-settings');
+    }
+    
+    // Return empty arrays if settings are missing
+    return { activePRs: [], dismissedPRs: [] };
+  }
+  
+  // If settings are configured or in dev mode, check PRs
+  const result = await checkForPRs();
+  
+  // Record the timestamp of this query
+  store.set('lastQueryTime', Date.now());
+  
+  // Make sure to update the tray menu after getting PRs
+  updateTrayMenu();
+  
+  return result;
 }
 
 app.whenReady().then(() => {
@@ -376,18 +537,7 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   startPRChecking();
-  
-  // Force a window show during development to make debugging easier
-  if (process.env.NODE_ENV === 'development') {
-    setTimeout(() => {
-      if (mainWindow) {
-        console.log('Showing window for development mode');
-        mainWindow.webContents.openDevTools({ mode: 'detach' });
-        // Note: We're not showing the window by default anymore, even in dev mode
-        // To see it, you'll need to click the tray icon
-      }
-    }, 1000);
-  }
+
   
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -412,7 +562,15 @@ ipcMain.handle('save-settings', (event, settings) => {
   if (settings.repos !== undefined) store.set('repos', settings.repos);
   if (settings.username !== undefined) store.set('username', settings.username);
   if (settings.checkInterval !== undefined) store.set('checkInterval', settings.checkInterval);
+  if (settings.enableNotifications !== undefined) store.set('enableNotifications', settings.enableNotifications);
   return true;
+});
+
+// Add handler for closing/hiding the window from renderer
+ipcMain.on('hide-window', () => {
+  if (mainWindow?.isVisible()) {
+    mainWindow.hide();
+  }
 });
 
 ipcMain.handle('get-settings', () => {
@@ -423,13 +581,17 @@ ipcMain.handle('get-settings', () => {
     checkInterval: store.get('checkInterval', DEFAULT_CHECK_INTERVAL),
     pendingPRs: store.get('pendingPRs', []),
     autoLaunch: store.get('autoLaunch', true),
+    enableNotifications: store.get('enableNotifications', true),
+    devShowSamplePRs: store.get('devShowSamplePRs', false),
+    lastQueryTime: store.get('lastQueryTime', 0),
   };
 });
 
 ipcMain.handle('check-now', async () => {
-  const prs = await checkForPRs();
-  updateTrayMenu(); // Update the tray menu to reflect new PR count
-  return prs;
+  const result = await checkSettingsAndPRs();
+  // Make sure to update the tray menu after getting new PRs
+  updateTrayMenu();
+  return result;
 });
 
 // Add this function to handle auto-launch functionality
@@ -463,4 +625,122 @@ ipcMain.handle('toggle-auto-launch', (event, enabled) => {
 // Add this IPC handler to get auto-launch status
 ipcMain.handle('get-auto-launch', () => {
   return store.get('autoLaunch', true);
+});
+
+// Add this IPC handler for dev settings
+ipcMain.handle('save-dev-settings', async (event, settings) => {
+  if (settings.devShowSamplePRs !== undefined) {
+    const previousValue = store.get('devShowSamplePRs', false);
+    const newValue = settings.devShowSamplePRs;
+    
+    console.log(`Changing devShowSamplePRs from ${previousValue} to ${newValue}`);
+    
+    // Update the setting
+    store.set('devShowSamplePRs', newValue);
+    
+    // When toggling sample mode, we need to clear the dismiss list
+    // This ensures clean state transitions between modes
+    if (previousValue !== newValue) {
+      console.log('Mode changed, refreshing PR data');
+      
+      // Check for PRs with the new setting
+      await checkSettingsAndPRs();
+    }
+    
+    // Immediately update the tray menu to reflect sample mode
+    updateTrayMenu();
+    
+    // Notify the renderer process that settings have changed
+    if (mainWindow) {
+      mainWindow.webContents.send('settings-updated');
+    }
+  }
+  return true;
+});
+
+// Add handler for dismissing a PR
+ipcMain.handle('dismiss-pr', (event, prId) => {
+  try {
+    console.log(`Dismissing PR with ID: ${prId}`);
+    
+    // Make sure dismissed PR list exists
+    const dismissedPRs = store.get('dismissedPRs', []);
+    if (!dismissedPRs.includes(prId)) {
+      // Add PR to the dismissed list
+      store.set('dismissedPRs', [...dismissedPRs, prId]);
+      console.log(`Added PR ${prId} to dismissed list, now contains ${dismissedPRs.length + 1} PRs`);
+    }
+    
+    // Get current pending PRs and update them
+    const pendingPRs = store.get('pendingPRs', []);
+    console.log(`Current pending PRs: ${pendingPRs.length}`);
+    
+    // Filter out the dismissed PR
+    const filteredPRs = pendingPRs.filter(pr => pr.id !== prId);
+    console.log(`After filtering, pending PRs: ${filteredPRs.length}`);
+    
+    // Update store with filtered PRs
+    store.set('pendingPRs', filteredPRs);
+
+    // Force update the tray menu with new count
+    console.log('Updating tray menu after dismissal');
+    updateTrayMenu();
+    
+    // Reset the title to ensure the count updates on macOS
+    if (process.platform === 'darwin' && tray) {
+      // We need to get the current active PRs count
+      const activePRs = store.get('pendingPRs', []);
+      const count = activePRs.length;
+      
+      if (count > 0) {
+        tray.setTitle(`${count} reviews`);
+      } else {
+        tray.setTitle('No reviews!');
+      }
+      console.log(`Set tray title to: ${count > 0 ? `${count} reviews` : 'No reviews!'}`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error dismissing PR:', error);
+    return false;
+  }
+});
+
+// Add handler for getting dismissed PRs
+ipcMain.handle('get-dismissed-prs', () => {
+  return store.get('dismissedPRs', []);
+});
+
+// Add handler for undismissing a PR
+ipcMain.handle('undismiss-pr', (event, prId) => {
+  try {
+    console.log(`Undismissing PR with ID: ${prId}`);
+    
+    // Get current dismissed PRs 
+    const dismissedPRs = store.get('dismissedPRs', []);
+    
+    // Filter out the undismissed PR
+    const updatedDismissedPRs = dismissedPRs.filter(id => id !== prId);
+    
+    console.log(`Removed PR ${prId} from dismissed list, now contains ${updatedDismissedPRs.length} PRs (was ${dismissedPRs.length})`);
+    
+    // Update the store with the new list
+    store.set('dismissedPRs', updatedDismissedPRs);
+    
+    // We need to find this PR in the result from checkForPRs and add it back to pendingPRs
+    // For dev mode, this will automatically be handled on next refresh via the mock data
+    // Just trigger a refresh to make sure everything is up-to-date
+    checkSettingsAndPRs().then(() => {
+      // Update the tray menu
+      updateTrayMenu();
+      
+      console.log('Refreshed PRs after undismissing');
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Error undismissing PR:', error);
+    return false;
+  }
 });

@@ -12,18 +12,44 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
   const [newRepo, setNewRepo] = useState('');
   const [checkInterval, setCheckInterval] = useState(15);
   const [isSaving, setIsSaving] = useState(false);
+  const [missingSettings, setMissingSettings] = useState(false);
+  const [autoLaunch, setAutoLaunch] = useState(true);
+  const [enableNotifications, setEnableNotifications] = useState(true);
+  const [showDevOptions, setShowDevOptions] = useState(false);
+  const [showSamplePRs, setShowSamplePRs] = useState(false);
+  const isDev = process.env.NODE_ENV === 'development' || true; // Force true for demo purposes
   
   useEffect(() => {
     loadSettings();
+    
+    // Check if we should show sample PRs based on stored setting
+    if (isDev) {
+      setShowDevOptions(true);
+      // We'll load the actual value from settings below
+    }
   }, []);
   
   const loadSettings = async () => {
     try {
       const settings = await ipcRenderer.invoke('get-settings');
-      setToken(settings.token || '');
-      setUsername(settings.username || '');
-      setRepos(settings.repos || []);
+      const token = settings.token || '';
+      const username = settings.username || '';
+      const repoList = settings.repos || [];
+      const autoLaunchSetting = settings.autoLaunch !== undefined ? settings.autoLaunch : true;
+      const enableNotificationsSetting = settings.enableNotifications !== undefined ? settings.enableNotifications : true;
+      const devShowSamplePRsSetting = settings.devShowSamplePRs !== undefined ? settings.devShowSamplePRs : false;
+      
+      setToken(token);
+      setUsername(username);
+      setRepos(repoList);
       setCheckInterval(settings.checkInterval || 15);
+      setAutoLaunch(autoLaunchSetting);
+      setEnableNotifications(enableNotificationsSetting);
+      setShowSamplePRs(devShowSamplePRsSetting);
+      
+      // Check if settings are missing
+      const missing = !token || !username || repoList.length === 0;
+      setMissingSettings(missing);
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -48,7 +74,24 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
         username,
         repos,
         checkInterval,
+        autoLaunch,
+        enableNotifications,
       });
+      
+      // Update missing settings status
+      const missing = !token || !username || repos.length === 0;
+      setMissingSettings(missing);
+      
+      // Update auto launch setting
+      await ipcRenderer.invoke('toggle-auto-launch', autoLaunch);
+      
+      // For development mode, save the sample PRs setting
+      if (isDev) {
+        await ipcRenderer.invoke('save-dev-settings', {
+          devShowSamplePRs: showSamplePRs
+        });
+        console.log(`Set devShowSamplePRs to ${showSamplePRs}`);
+      }
       
       onSave();
     } catch (error) {
@@ -58,121 +101,77 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
     }
   };
   
-  const styles = {
-    section: {
-      marginBottom: '24px',
-    },
-    label: {
-      display: 'block',
-      marginBottom: '6px',
-      fontWeight: 'bold' as const,
-    },
-    input: {
-      width: '100%',
-      padding: '8px',
-      borderRadius: '4px',
-      border: '1px solid #ddd',
-      marginBottom: '12px',
-    },
-    repoContainer: {
-      display: 'flex',
-      gap: '8px',
-      marginBottom: '8px',
-    },
-    addButton: {
-      padding: '8px 12px',
-      backgroundColor: '#0366d6',
-      color: 'white',
-      border: 'none',
-      borderRadius: '4px',
-      cursor: 'pointer',
-    },
-    removeButton: {
-      padding: '2px 6px',
-      backgroundColor: '#e36209',
-      color: 'white',
-      border: 'none',
-      borderRadius: '4px',
-      cursor: 'pointer',
-      fontSize: '12px',
-    },
-    repoList: {
-      maxHeight: '150px',
-      overflowY: 'auto' as const,
-      border: '1px solid #eee',
-      padding: '8px',
-      marginTop: '8px',
-      borderRadius: '4px',
-    },
-    repoItem: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '6px',
-      borderBottom: '1px solid #eee',
-    },
-    saveButton: {
-      padding: '10px 16px',
-      backgroundColor: '#2ea44f',
-      color: 'white',
-      border: 'none',
-      borderRadius: '4px',
-      cursor: 'pointer',
-      fontWeight: 'bold' as const,
-      marginTop: '12px',
-    },
-  };
-  
   return (
     <div>
-      <h2>Settings</h2>
+      <h2 className="text-xl font-bold mb-6">Settings</h2>
       
-      <div style={styles.section}>
-        <label style={styles.label} htmlFor="token">GitHub Personal Access Token</label>
+      {missingSettings && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+          <p className="text-yellow-700 font-medium">⚠️ Setup required</p>
+          <p className="text-sm text-yellow-600 mt-1">Please configure your GitHub settings to start monitoring pull requests.</p>
+        </div>
+      )}
+      
+      <div className="mb-7">
+        <label className="block mb-2 font-semibold text-sm text-gray-700" htmlFor="token">
+          GitHub Personal Access Token
+        </label>
         <input
           id="token"
           type="password"
           value={token}
           onChange={(e) => setToken(e.target.value)}
           placeholder="ghp_xxxxxxxxxxxx"
-          style={styles.input}
+          className="w-full px-3 py-2.5 rounded-md border border-gray-200 mb-3 text-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none bg-gray-50"
         />
-        <p>Create a token with 'repo' scope at GitHub Developer Settings</p>
+        <p className="text-xs text-gray-500">Create a token with 'repo' scope at GitHub Developer Settings</p>
       </div>
       
-      <div style={styles.section}>
-        <label style={styles.label} htmlFor="username">GitHub Username</label>
+      <div className="mb-7">
+        <label className="block mb-2 font-semibold text-sm text-gray-700" htmlFor="username">
+          GitHub Username
+        </label>
         <input
           id="username"
           type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Your GitHub username"
-          style={styles.input}
+          className="w-full px-3 py-2.5 rounded-md border border-gray-200 mb-3 text-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none bg-gray-50"
         />
       </div>
       
-      <div style={styles.section}>
-        <label style={styles.label}>Repositories to Monitor</label>
-        <div style={styles.repoContainer}>
+      <div className="mb-7">
+        <label className="block mb-2 font-semibold text-sm text-gray-700">
+          Repositories to Monitor
+        </label>
+        <div className="flex gap-2 mb-3">
           <input
             type="text"
             value={newRepo}
             onChange={(e) => setNewRepo(e.target.value)}
             placeholder="owner/repo (e.g. facebook/react)"
-            style={{ ...styles.input, marginBottom: 0, flex: 1 }}
+            className="flex-1 px-3 py-2.5 rounded-md border border-gray-200 text-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none bg-gray-50"
           />
-          <button style={styles.addButton} onClick={handleAddRepo}>Add</button>
+          <button 
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white border-none rounded-md cursor-pointer font-medium transition-colors"
+            onClick={handleAddRepo}
+          >
+            Add
+          </button>
         </div>
         
-        <div style={styles.repoList}>
+        <div className="max-h-44 overflow-y-auto border border-gray-200 p-3 mt-3 rounded-md bg-gray-50">
           {repos.length === 0 ? (
-            <p>No repositories added yet</p>
+            <p className="text-center py-5 text-gray-500 italic">No repositories added yet</p>
           ) : (
             repos.map((repo) => (
-              <div key={repo} style={styles.repoItem}>
-                <span>{repo}</span>
-                <button style={styles.removeButton} onClick={() => handleRemoveRepo(repo)}>
+              <div key={repo} className="flex justify-between items-center px-3 py-2.5 border-b border-gray-200 rounded mb-2 bg-white hover:bg-blue-50 transition-colors">
+                <span className="text-sm">{repo}</span>
+                <button 
+                  className="px-2 py-1 bg-red-400 hover:bg-red-500 text-white border-none rounded-md cursor-pointer text-xs transition-colors"
+                  onClick={() => handleRemoveRepo(repo)}
+                >
                   Remove
                 </button>
               </div>
@@ -181,8 +180,10 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
         </div>
       </div>
       
-      <div style={styles.section}>
-        <label style={styles.label} htmlFor="interval">Check Interval (minutes)</label>
+      <div className="mb-7">
+        <label className="block mb-2 font-semibold text-sm text-gray-700" htmlFor="interval">
+          Check Interval (minutes)
+        </label>
         <input
           id="interval"
           type="number"
@@ -190,12 +191,71 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
           max="60"
           value={checkInterval}
           onChange={(e) => setCheckInterval(parseInt(e.target.value, 10))}
-          style={{ ...styles.input, width: '100px' }}
+          className="w-24 px-3 py-2.5 rounded-md border border-gray-200 text-sm bg-gray-50"
         />
       </div>
       
+      <div className="mb-7">
+        <div className="flex items-center">
+          <input
+            id="enableNotifications"
+            type="checkbox"
+            checked={enableNotifications}
+            onChange={(e) => setEnableNotifications(e.target.checked)}
+            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+          />
+          <label htmlFor="enableNotifications" className="ml-2 text-sm font-medium text-gray-700">
+            Enable notifications for new PRs
+          </label>
+        </div>
+      </div>
+      
+      {/* Development options */}
+      {showDevOptions && (
+        <div className="mb-7 p-4 bg-gray-100 border border-gray-200 rounded-md">
+          <h3 className="text-md font-semibold mb-3 text-gray-700">Developer Options</h3>
+          <div className="flex items-center">
+            <input
+              id="showSamplePRs"
+              type="checkbox"
+              checked={showSamplePRs}
+              onChange={async (e) => {
+                const newValue = e.target.checked;
+                setShowSamplePRs(newValue);
+                
+                // Save the setting immediately and refresh
+                try {
+                  await ipcRenderer.invoke('save-dev-settings', {
+                    devShowSamplePRs: newValue
+                  });
+                  
+                  console.log(`Set devShowSamplePRs to ${newValue} and refreshing...`);
+                  
+                  // Trigger a refresh immediately
+                  onSave();
+                } catch (error) {
+                  console.error('Error updating sample PR mode:', error);
+                }
+              }}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <label htmlFor="showSamplePRs" className="ml-2 text-sm font-medium text-gray-700">
+              Show sample PRs (for UI testing)
+            </label>
+          </div>
+          {showSamplePRs && (
+            <div className="mt-3 p-2 bg-blue-50 border border-blue-100 rounded text-sm text-blue-700">
+              <p className="font-medium">Sample PR mode is active</p>
+              <p className="text-xs mt-1">Real GitHub PRs will not be checked. Changes take effect immediately.</p>
+            </div>
+          )}
+        </div>
+      )}
+      
       <button 
-        style={styles.saveButton} 
+        className={`px-5 py-3 mt-5 bg-green-600 text-white border-none rounded-md cursor-pointer font-semibold text-base transition-all hover:bg-green-700 active:scale-98 ${
+          isSaving ? 'bg-green-300 cursor-not-allowed' : ''
+        }`}
         onClick={handleSave}
         disabled={isSaving}
       >
