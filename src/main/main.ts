@@ -30,7 +30,11 @@ interface StoreSchema {
   lastQueryTime: number; // Timestamp of the last GitHub API query
 }
 
-const store = new Store<StoreSchema>();
+// Configure store path for tests if environment variable is set
+const store = new Store<StoreSchema>({
+  cwd: process.env.ELECTRON_STORE_PATH ? path.dirname(process.env.ELECTRON_STORE_PATH) : undefined,
+  name: process.env.ELECTRON_STORE_PATH ? path.basename(process.env.ELECTRON_STORE_PATH, '.json') : undefined
+});
 
 const schema: StoreSchema = {
   token: '',
@@ -125,8 +129,8 @@ function createWindow() {
   mainWindow?.webContents.on('did-finish-load', () => {
     console.log('Window content loaded successfully');
     
-    // Only open DevTools in development
-    if (process.env.NODE_ENV === 'development') {
+    // Only open DevTools in development and not in test mode
+    if (process.env.NODE_ENV === 'development' ) {
       mainWindow?.webContents.openDevTools({ mode: 'detach' });
     }
     

@@ -25,7 +25,11 @@ interface StoreSchema {
   devShowSamplePRs: boolean; // For development mode only
 }
 
-const store = new Store<StoreSchema>();
+// Configure store path for tests if environment variable is set
+const store = new Store<StoreSchema>({
+  cwd: process.env.ELECTRON_STORE_PATH ? path.dirname(process.env.ELECTRON_STORE_PATH) : undefined,
+  name: process.env.ELECTRON_STORE_PATH ? path.basename(process.env.ELECTRON_STORE_PATH, '.json') : undefined
+});
 
 // Type for PR checking results, includes active and dismissed PRs
 export interface PRCheckResult {

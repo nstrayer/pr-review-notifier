@@ -78,6 +78,7 @@ const PRList: React.FC<PRListProps> = ({
           {prs.map((pr) => (
             <li 
               key={pr.id} 
+              data-testid="pr-item"
               className={`border-b border-gray-200 p-4 cursor-default transition-all duration-200 rounded-md mb-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 ${isDismissed ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'}`}
             >
               <h3 className={`text-base font-semibold mb-2 ${isDismissed ? 'text-gray-600' : 'text-blue-600'}`}>

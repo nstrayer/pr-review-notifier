@@ -12,7 +12,12 @@
     "optimize": "node optimize-build.js",
     "dist": "npm run build && npm run optimize && npx electron-builder --mac --arm64",
     "postinstall": "electron-builder install-app-deps",
-    "predist": "npm install --dev && tsc -p ."
+    "predist": "npm install --dev && tsc -p .",
+    "test": "./tests/run-tests.sh",
+    "test:single": "./tests/run-tests.sh tests/e2e/pr-list.spec.ts",
+    "test:pr-list": "npm run build && node pr-list-test.js",
+    "test:debug": "./tests/run-tests.sh --debug",
+    "playwright:install": "npx playwright install"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +32,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.51.1",
     "@types/node": "^22.13.10",
     "@types/node-notifier": "^8.0.5",
     "@types/react": "^19.0.10",
