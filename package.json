@@ -10,9 +10,9 @@
     "pack": "electron-builder --dir",
     "electron": "^35.0.1",
     "optimize": "node optimize-build.js",
-    "dist": "npm run build && npm run optimize && dotenv -- electron-builder --mac --arm64",
+    "dist": "npm run build && npm run optimize && npx electron-builder --mac --arm64",
     "postinstall": "electron-builder install-app-deps",
-    "predist": "npm prune --production"
+    "predist": "npm install --dev && tsc -p ."
   },
   "keywords": [],
   "author": "",

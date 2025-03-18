@@ -1,4 +1,15 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, Notification, MenuItemConstructorOptions } from 'electron';
+import { 
+  app, 
+  BrowserWindow, 
+  Menu, 
+  Tray, 
+  nativeImage, 
+  ipcMain, 
+  Notification, 
+  MenuItemConstructorOptions,
+  screen,
+  shell 
+} from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { checkForPRs } from '../utils/github';
@@ -54,6 +65,8 @@ function createWindow() {
       contextIsolation: false,
       // Enable smooth scrolling
       enableBlinkFeatures: 'SmoothScrolling',
+      // Use frame rate divisor for better performance on Apple Silicon
+      backgroundThrottling: false,
     },
     // Make it a proper menu bar dropdown window
     titleBarStyle: process.platform === 'darwin' ? 'customButtonsOnHover' : 'hidden',
@@ -389,7 +402,6 @@ function showWindow(trayBounds?: Electron.Rectangle) {
   const windowBounds = mainWindow.getBounds();
   
   // Get display that contains the tray icon
-  const { screen } = require('electron');
   const display = screen.getDisplayNearestPoint({
     x: trayBounds.x,
     y: trayBounds.y
@@ -523,6 +535,11 @@ async function checkSettingsAndPRs() {
   return result;
 }
 
+// Enable optimizations for Apple Silicon
+app.commandLine.appendSwitch('js-flags', '--expose-gc');
+app.commandLine.appendSwitch('enable-features', 'MetalLowPowerMode');
+app.commandLine.appendSwitch('use-angle', 'metal');
+
 app.whenReady().then(() => {
   console.log('App is ready, initializing...');
   
@@ -530,6 +547,11 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin') {
     app.dock.hide();
   }
+  
+  // Set up periodic garbage collection to reduce memory usage
+  setInterval(() => {
+    if (global.gc) global.gc();
+  }, 60000);
   
   // Setup auto-launch for startup
   setupAutoLaunch();

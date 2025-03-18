@@ -20,7 +20,9 @@ const foldersToRemove = [
   'node_modules/electron/dist/Electron.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/icudtl.dat',
   'node_modules/electron/dist/ffmpeg',
   'node_modules/@octokit/rest/node_modules',
-  'node_modules/.cache'
+  'node_modules/.cache',
+  // Remove x64 binaries since this is an arm64-only app
+  'node_modules/electron/dist/Electron.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources/x64'
 ];
 
 // Extensions of files to remove
@@ -29,9 +31,9 @@ const extensionsToRemove = [
   '.jake', '.jsm', '.sjs', '.uncompressed.js', '.hard', '.gyp', '.c', '.h', '.cc', '.cpp'
 ];
 
-// Run npm prune to remove dev dependencies
-console.log('🧹 Removing dev dependencies...');
-execSync('npm prune --production', { stdio: 'inherit' });
+// NOTE: We're not removing dev dependencies here anymore
+// because it was causing TypeScript errors during the build
+console.log('🧹 Skipping dev dependency removal to preserve types...');
 
 // Remove specific folders
 console.log('🗑️ Removing unnecessary folders...');

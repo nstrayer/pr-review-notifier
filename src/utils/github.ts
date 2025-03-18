@@ -1,8 +1,9 @@
 import { Octokit } from '@octokit/rest';
-import { Notification } from 'electron';
+import { Notification, shell } from 'electron';
 import Store from 'electron-store';
 import notifier from 'node-notifier';
 import path from 'path';
+import fs from 'fs';
 
 interface PR {
   id: number;
@@ -175,7 +176,7 @@ export async function checkForPRs(): Promise<PRCheckResult> {
             };
             
             try {
-              if (require('fs').existsSync(iconPath)) {
+              if (fs.existsSync(iconPath)) {
                 notificationOptions.icon = iconPath;
               }
             } catch (error) {
@@ -241,6 +242,5 @@ export async function checkForPRs(): Promise<PRCheckResult> {
 }
 
 export async function openPR(url: string): Promise<void> {
-  const { shell } = require('electron');
   await shell.openExternal(url);
 }
