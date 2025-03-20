@@ -13,28 +13,34 @@ const packageJsonPath = path.join(__dirname, 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 
 // Create a simplified build configuration for GitHub Actions
+// When using --config flag, electron-builder expects just the configuration object, not wrapped in "build" property
 const githubBuildConfig = {
-  ...packageJson.build,
+  appId: packageJson.build.appId,
+  productName: packageJson.build.productName,
+  asar: packageJson.build.asar,
+  afterSign: "./notarize.js",
+  files: packageJson.build.files,
   mac: {
-    ...packageJson.build.mac,
+    category: packageJson.build.mac.category,
+    target: packageJson.build.mac.target,
+    icon: packageJson.build.mac.icon,
+    darkModeSupport: packageJson.build.mac.darkModeSupport,
     hardenedRuntime: true,
     gatekeeperAssess: false,
     entitlements: "build/entitlements.github.plist",
     entitlementsInherit: "build/entitlements.github.plist",
     notarize: true
-  }
+  },
+  directories: packageJson.build.directories
 };
 
-// Update the package.json with the GitHub-specific configuration
-packageJson.build = githubBuildConfig;
-
-// Write the updated package.json
+// Write the configuration file
 fs.writeFileSync(
-  path.join(__dirname, 'package.github.json'), 
-  JSON.stringify(packageJson, null, 2)
+  path.join(__dirname, 'electron-builder.json'), 
+  JSON.stringify(githubBuildConfig, null, 2)
 );
 
-console.log('✅ Created GitHub-specific build configuration in package.github.json');
+console.log('✅ Created GitHub-specific build configuration in electron-builder.json');
 
 // Also create a simplified entitlements file if it doesn't exist
 const githubEntitlementsPath = path.join(__dirname, 'build', 'entitlements.github.plist');

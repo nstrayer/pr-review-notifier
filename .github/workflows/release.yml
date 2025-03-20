@@ -33,7 +33,12 @@ jobs:
         run: |
           node prepare-build.js
           ls -la
-          cat package.github.json
+          cat electron-builder.json
+          
+      # Debug notarize.js
+      - name: Debug notarize.js
+        run: |
+          cat notarize.js
           
       # Debug entitlements file
       - name: Debug entitlements file
@@ -59,11 +64,27 @@ jobs:
           security find-identity -v
           security find-identity -v -p codesigning
           
+      # Check that environment variables are set
+      - name: Debug environment variables
+        run: |
+          echo "Testing environment variables (values redacted):"
+          echo "APPLE_ID: ${APPLE_ID:0:2}...${APPLE_ID: -2}"
+          echo "APPLE_TEAM_ID: ${APPLE_TEAM_ID:0:2}...${APPLE_TEAM_ID: -2}"
+          echo "APPLE_APP_SPECIFIC_PASSWORD: ${APPLE_APP_SPECIFIC_PASSWORD:0:2}...${APPLE_APP_SPECIFIC_PASSWORD: -2}"
+          echo "CSC_LINK is set: $([ ! -z "$CSC_LINK" ] && echo 'Yes' || echo 'No')"
+          echo "CSC_KEY_PASSWORD is set: $([ ! -z "$CSC_KEY_PASSWORD" ] && echo 'Yes' || echo 'No')"
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          CSC_LINK: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
+          
       - name: Build macOS arm64 package
         run: |
           npm run build && npm run optimize && \
           DEBUG=electron-builder,electron-notarize* \
-          npx electron-builder --mac --arm64 --config=package.github.json
+          npx electron-builder --mac --arm64 --config=electron-builder.json
         env:
           # Apple notarization details
           APPLE_ID: ${{ secrets.APPLE_ID }}
