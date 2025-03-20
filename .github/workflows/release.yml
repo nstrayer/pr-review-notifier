@@ -84,7 +84,7 @@ jobs:
         run: |
           npm run build && npm run optimize && \
           DEBUG=electron-builder,electron-notarize* \
-          npx electron-builder --mac --arm64 --config=electron-builder.json
+          npx electron-builder --mac --arm64 --config=electron-builder.json --publish never
         env:
           # Apple notarization details
           APPLE_ID: ${{ secrets.APPLE_ID }}
