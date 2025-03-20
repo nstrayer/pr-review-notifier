@@ -52,7 +52,7 @@ export async function checkForPRs(): Promise<PRCheckResult> {
   if (showSamplePRs) {
     console.log('Returning sample PRs from github.ts');
     
-    // Create sample PRs
+    // Create sample PRs - these represent all valid PRs
     const sampleActivePRs: PR[] = [
       {
         id: 9876543210,
@@ -95,11 +95,23 @@ export async function checkForPRs(): Promise<PRCheckResult> {
       }
     ];
     
+    // Get all valid PR IDs in the sample data
+    const validPRIds = [...sampleActivePRs, ...sampleAlwaysDismissedPRs].map(pr => pr.id);
+    
+    // Filter dismissed PRs to only those that are still valid
+    const updatedDismissedPRIds = dismissedPRIds.filter(id => validPRIds.includes(id));
+    
+    // If some dismissed PRs were removed, update the store
+    if (updatedDismissedPRIds.length !== dismissedPRIds.length) {
+      console.log(`[Sample Mode] Removing ${dismissedPRIds.length - updatedDismissedPRIds.length} dismissed PRs that no longer exist`);
+      store.set('dismissedPRs', updatedDismissedPRIds);
+    }
+    
     // Check which of the active sample PRs are in the dismissed list
-    const actualActivePRs = sampleActivePRs.filter(pr => !dismissedPRIds.includes(pr.id));
+    const actualActivePRs = sampleActivePRs.filter(pr => !updatedDismissedPRIds.includes(pr.id));
     
     // Find dismissed PRs: combine always-dismissed samples with any dismissed active samples
-    const dismissedActivePRs = sampleActivePRs.filter(pr => dismissedPRIds.includes(pr.id));
+    const dismissedActivePRs = sampleActivePRs.filter(pr => updatedDismissedPRIds.includes(pr.id));
     
     // Final dismissed list includes both always-dismissed and user-dismissed PRs
     const dismissedPRs = [...sampleAlwaysDismissedPRs, ...dismissedActivePRs];
@@ -125,6 +137,11 @@ export async function checkForPRs(): Promise<PRCheckResult> {
   
   const octokit = new Octokit({ auth: token });
   const pendingPRs: PR[] = [];
+  
+  // Track all valid PR IDs that currently exist in GitHub
+  const validPRIds: number[] = [];
+  // Store all valid PRs by their ID for quick lookup
+  const validPRsById: Record<number, PR> = {};
   
   try {
     for (const repoFullName of repos) {
@@ -156,7 +173,11 @@ export async function checkForPRs(): Promise<PRCheckResult> {
         
         const isRequested = reviewRequests.users.some(user => user.login === username);
         
-        if (isRequested && !dismissedPRIds.includes(pr.id)) {
+        // Track this PR ID as valid regardless of whether it's dismissed or not
+        if (isRequested) {
+          validPRIds.push(pr.id);
+          
+          // Create PR object
           const newPR = {
             id: pr.id,
             number: pr.number,
@@ -165,44 +186,50 @@ export async function checkForPRs(): Promise<PRCheckResult> {
             repo: repoFullName,
           };
           
-          pendingPRs.push(newPR);
+          // Store in lookup map for use with dismissed PRs
+          validPRsById[pr.id] = newPR;
           
-          // Check if we've already notified for this PR and if notifications are enabled
-          const notifiedPRs = store.get('notifiedPRs', []);
-          const enableNotifications = store.get('enableNotifications', true);
-          
-          if (!notifiedPRs.includes(pr.id) && enableNotifications) {
-            // Send notification using system notifications
-            const iconPath = path.join(__dirname, '../../assets/icon.svg');
-            let notificationOptions: any = {
-              title: `PR Review Requested: ${repoFullName}`,
-              message: pr.title,
-            };
+          // Only add to pending PRs if not dismissed
+          if (!dismissedPRIds.includes(pr.id)) {
+            pendingPRs.push(newPR);
             
-            try {
-              if (fs.existsSync(iconPath)) {
-                notificationOptions.icon = iconPath;
+            // Check if we've already notified for this PR and if notifications are enabled
+            const notifiedPRs = store.get('notifiedPRs', []);
+            const enableNotifications = store.get('enableNotifications', true);
+            
+            if (!notifiedPRs.includes(pr.id) && enableNotifications) {
+              // Send notification using system notifications
+              const iconPath = path.join(__dirname, '../../assets/icon.svg');
+              let notificationOptions: any = {
+                title: `PR Review Requested: ${repoFullName}`,
+                message: pr.title,
+              };
+              
+              try {
+                if (fs.existsSync(iconPath)) {
+                  notificationOptions.icon = iconPath;
+                }
+              } catch (error) {
+                console.log('Icon not found, using default system icon');
               }
-            } catch (error) {
-              console.log('Icon not found, using default system icon');
+              
+              notifier.notify(notificationOptions);
+              
+              // Also open an Electron notification that when clicked will open the PR
+              const notification = new Notification({
+                title: `PR Review Requested: ${repoFullName}`,
+                body: pr.title,
+              });
+              
+              notification.on('click', () => {
+                openPR(pr.html_url);
+              });
+              
+              notification.show();
+              
+              // Mark as notified
+              store.set('notifiedPRs', [...notifiedPRs, pr.id]);
             }
-            
-            notifier.notify(notificationOptions);
-            
-            // Also open an Electron notification that when clicked will open the PR
-            const notification = new Notification({
-              title: `PR Review Requested: ${repoFullName}`,
-              body: pr.title,
-            });
-            
-            notification.on('click', () => {
-              openPR(pr.html_url);
-            });
-            
-            notification.show();
-            
-            // Mark as notified
-            store.set('notifiedPRs', [...notifiedPRs, pr.id]);
           }
         }
       }
@@ -211,16 +238,30 @@ export async function checkForPRs(): Promise<PRCheckResult> {
     console.error('Error checking PRs:', error);
   }
   
+  // Filter the dismissed PR IDs to only include valid ones
+  const updatedDismissedPRIds = dismissedPRIds.filter(id => validPRIds.includes(id));
+  
+  // If some dismissed PRs were removed, update the store
+  if (updatedDismissedPRIds.length !== dismissedPRIds.length) {
+    console.log(`Removing ${dismissedPRIds.length - updatedDismissedPRIds.length} dismissed PRs that no longer exist`);
+    store.set('dismissedPRs', updatedDismissedPRIds);
+  }
+  
   // Separate active and dismissed PRs
   const activePRs: PR[] = [];
   const dismissedPRs: PR[] = [];
   
-  // Sort PRs into active and dismissed categories
+  // Add active PRs
   pendingPRs.forEach(pr => {
-    if (dismissedPRIds.includes(pr.id)) {
-      dismissedPRs.push(pr);
-    } else {
+    if (!updatedDismissedPRIds.includes(pr.id)) {
       activePRs.push(pr);
+    }
+  });
+  
+  // Add dismissed PRs with full details from the valid PRs map
+  updatedDismissedPRIds.forEach(id => {
+    if (validPRsById[id]) {
+      dismissedPRs.push(validPRsById[id]);
     }
   });
   
