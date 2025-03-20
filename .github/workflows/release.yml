@@ -28,6 +28,21 @@ jobs:
         env:
           NODE_ENV: production
           
+      # Prepare GitHub-specific build configuration
+      - name: Prepare build configuration for GitHub
+        run: |
+          node prepare-build.js
+          ls -la
+          cat package.github.json
+          
+      # Debug entitlements file
+      - name: Debug entitlements file
+        run: |
+          ls -la build/
+          cat build/entitlements.github.plist
+          plutil -lint build/entitlements.github.plist
+          chmod 644 build/entitlements.github.plist
+          
       # Import Apple Developer Certificate for signing
       - name: Install Apple Developer Certificate
         if: ${{ github.event_name != 'pull_request' }}
@@ -38,13 +53,24 @@ jobs:
           keychain: build
           keychain-password: ${{ secrets.KEYCHAIN_PASSWORD }}
           
+      # Add debugging for the code signing identity
+      - name: Debug code signing
+        run: |
+          security find-identity -v
+          security find-identity -v -p codesigning
+          
       - name: Build macOS arm64 package
-        run: npm run dist:debug
+        run: |
+          npm run build && npm run optimize && \
+          DEBUG=electron-builder,electron-notarize* \
+          npx electron-builder --mac --arm64 --config=package.github.json
         env:
           # Apple notarization details
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_LINK: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
           
       - name: Upload artifacts to release
         uses: softprops/action-gh-release@v1

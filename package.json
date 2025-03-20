@@ -12,6 +12,7 @@
     "optimize": "node optimize-build.js",
     "dist": "npm run build && npm run optimize && npx electron-builder --mac --arm64",
     "dist:debug": "npm run build && npm run optimize && DEBUG=electron-builder,electron-notarize* npx electron-builder --mac --arm64",
+    "dist:github": "npm run build && npm run optimize && DEBUG=electron-builder,electron-notarize* npx electron-builder --mac --arm64 --config.mac.entitlements=build/entitlements.github.plist --config.mac.entitlementsInherit=build/entitlements.github.plist",
     "postinstall": "electron-builder install-app-deps",
     "predist": "npm install --dev && tsc -p .",
     "test": "./tests/run-tests.sh",
