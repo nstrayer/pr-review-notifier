@@ -20,7 +20,7 @@ const githubBuildConfig = {
   asar: packageJson.build.asar,
   afterSign: "./notarize.js",
   files: packageJson.build.files,
-  publish: "never",
+  publish: null, // Use null to disable publishing
   mac: {
     category: packageJson.build.mac.category,
     target: packageJson.build.mac.target,
