@@ -29,7 +29,7 @@ jobs:
           NODE_ENV: production
           
       - name: Build macOS arm64 package
-        run: npx electron-builder --mac --arm64
+        run: npx electron-builder --mac --arm64 --publish never
         env:
           # If you have code signing certificates, you'd configure them here
           CSC_IDENTITY_AUTO_DISCOVERY: false
