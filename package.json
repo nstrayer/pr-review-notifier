@@ -28,13 +28,13 @@
   "dependencies": {
     "@octokit/rest": "^19.0.13",
     "date-fns": "^4.1.0",
-    "electron": "^25.0.0",
     "electron-store": "^8.1.0",
     "node-notifier": "^10.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "electron": "^25.0.0",
     "@playwright/test": "^1.51.1",
     "@types/node": "^22.13.10",
     "@types/node-notifier": "^8.0.5",
