@@ -28,10 +28,23 @@ jobs:
         env:
           NODE_ENV: production
           
+      # Import Apple Developer Certificate for signing
+      - name: Install Apple Developer Certificate
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
+          p12-password: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
+          keychain: build.keychain
+          keychain-password: ${{ secrets.KEYCHAIN_PASSWORD }}
+          
       - name: Build macOS arm64 package
-        run: npx electron-builder --mac --arm64 --publish never
+        run: npm run dist:debug
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          # Apple notarization details
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           
       - name: Upload artifacts to release
         uses: softprops/action-gh-release@v1

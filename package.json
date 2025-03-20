@@ -11,6 +11,7 @@
     "electron": "^35.0.1",
     "optimize": "node optimize-build.js",
     "dist": "npm run build && npm run optimize && npx electron-builder --mac --arm64",
+    "dist:debug": "npm run build && npm run optimize && DEBUG=electron-builder,electron-notarize* npx electron-builder --mac --arm64",
     "postinstall": "electron-builder install-app-deps",
     "predist": "npm install --dev && tsc -p .",
     "test": "./tests/run-tests.sh",
@@ -54,7 +55,7 @@
     "webpack-cli": "^6.0.1"
   },
   "build": {
-    "appId": "com.yourname.prnotifier",
+    "appId": "com.nickstrayer.prnotifier",
     "productName": "PR Notifier",
     "asar": true,
     "compression": "maximum",
@@ -75,12 +76,13 @@
       ],
       "icon": "build/icon.icns",
       "darkModeSupport": true,
-      "hardenedRuntime": false,
+      "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": true
     },
-    "afterSign": null,
+    "afterSign": "./notarize.js",
     "files": [
       "dist/**/*",
       "!dist/**/*.map",
