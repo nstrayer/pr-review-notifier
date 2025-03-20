@@ -2,7 +2,7 @@
 
 A lightweight macOS menubar application that monitors GitHub repositories and notifies you when you're tagged as a reviewer on pull requests. Designed specifically for Apple Silicon Macs.
 
-![PR Notifier Screenshot](assets/tray-icon-template.png)
+<img src="icon.png" alt="PR Notifier Screenshot" width="200" />
 
 ## Features
 
