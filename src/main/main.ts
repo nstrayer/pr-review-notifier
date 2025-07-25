@@ -28,6 +28,13 @@ interface StoreSchema {
   enableNotifications: boolean;
   devShowSamplePRs: boolean; // For development mode only
   lastQueryTime: number; // Timestamp of the last GitHub API query
+  lastCheckHadErrors: boolean; // Whether the last PR check had errors
+  lastCheckErrors: Array<{ // Array of errors from the last check
+    type: 'auth' | 'network' | 'repo_access' | 'rate_limit' | 'unknown';
+    message: string;
+    repoName?: string;
+    details?: string;
+  }>;
 }
 
 // Configure store path for tests if environment variable is set
@@ -49,6 +56,8 @@ const schema: StoreSchema = {
   enableNotifications: true,
   devShowSamplePRs: false, // For development mode only
   lastQueryTime: 0, // Default to 0 (no queries yet)
+  lastCheckHadErrors: false, // Default to no errors
+  lastCheckErrors: [], // Default to empty array
 };
 
 let mainWindow: BrowserWindow | null = null;
@@ -58,6 +67,16 @@ let isQuitting = false;
 
 // Check interval in minutes
 const DEFAULT_CHECK_INTERVAL = 15;
+
+function getAppIconPath(): string {
+  // Get the app icon path for notifications
+  const iconPath = path.join(__dirname, '../build/icon.png');
+  if (fs.existsSync(iconPath)) {
+    return iconPath;
+  }
+  // Fallback to tray icon if main icon not found
+  return path.join(__dirname, '../assets', 'tray-icon-template.png');
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -267,24 +286,43 @@ function buildContextMenu() {
   const username = store.get('username', '');
   const missingSettings = !token || !username || repos.length === 0;
   const showSamplePRs = store.get('devShowSamplePRs', false);
+  const lastCheckHadErrors = store.get('lastCheckHadErrors', false);
+  const lastCheckErrors = store.get('lastCheckErrors', [] as StoreSchema['lastCheckErrors']);
   
   // Log the pending PRs count for debugging
   console.log(`Building context menu with ${pendingPRs.length} pending PRs`);
   
   let menuLabel = '';
   
-  if (missingSettings && !showSamplePRs) {
+  if (lastCheckHadErrors) {
+    menuLabel = '⚠️ PR Notifier (Error)';
+  } else if (missingSettings && !showSamplePRs) {
     menuLabel = 'PR Notifier (Setup Required)';
   } else {
     menuLabel = `PR Notifier${pendingPRs.length > 0 ? ` (${pendingPRs.length})` : ''}`;
   }
   
-  const template = [
+  const template: any[] = [
     { 
       label: menuLabel, 
       enabled: false 
-    },
-    { type: 'separator' },
+    }
+  ];
+  
+  // Add error details if there are errors
+  if (lastCheckHadErrors && lastCheckErrors.length > 0) {
+    lastCheckErrors.forEach((error: any) => {
+      template.push({
+        label: `   ⚠️ ${error.message}`,
+        enabled: false
+      });
+    });
+  }
+  
+  template.push({ type: 'separator' });
+  
+  // Add the rest of the menu items
+  template.push(
     { label: 'Open', click: () => {
       // Ensure the window is visible and focused
       if (!mainWindow?.isVisible()) {
@@ -315,7 +353,7 @@ function buildContextMenu() {
     }},
     { type: 'separator' },
     { label: 'Quit', click: () => { isQuitting = true; app.quit(); } }
-  ];
+  );
   
   // Add indicator if in sample mode
   if (showSamplePRs) {
@@ -337,13 +375,17 @@ export function updateTrayMenu() {
   const username = store.get('username', '');
   const missingSettings = !token || !username || repos.length === 0;
   const showSamplePRs = store.get('devShowSamplePRs', false);
+  const lastCheckHadErrors = store.get('lastCheckHadErrors', false);
+  const lastCheckErrors = store.get('lastCheckErrors', [] as StoreSchema['lastCheckErrors']);
   
   // Log current PR count for debugging
-  console.log(`Updating tray menu with ${pendingPRs.length} pending PRs`);
+  console.log(`Updating tray menu with ${pendingPRs.length} pending PRs, errors: ${lastCheckHadErrors}`);
   
   // Update the icon badge on macOS
   if (process.platform === 'darwin') {
-    if (missingSettings && !showSamplePRs) {
+    if (lastCheckHadErrors) {
+      tray?.setTitle('⚠️ Error'); 
+    } else if (missingSettings && !showSamplePRs) {
       tray?.setTitle('Setup needed!'); 
     } else if (pendingPRs.length > 0) {
       tray?.setTitle(`${pendingPRs.length} reviews`);
@@ -352,7 +394,10 @@ export function updateTrayMenu() {
     }
   } else {
     // On Windows/Linux we might update the icon or tooltip instead
-    if (missingSettings && !showSamplePRs) {
+    if (lastCheckHadErrors) {
+      const errorMsg = lastCheckErrors.length > 0 ? lastCheckErrors[0].message : 'Error checking PRs';
+      tray?.setToolTip(`PR Notifier - Error: ${errorMsg}`);
+    } else if (missingSettings && !showSamplePRs) {
       tray?.setToolTip('PR Notifier - Setup needed!');
     } else {
       tray?.setToolTip(`PR Notifier${pendingPRs.length > 0 ? ` (${pendingPRs.length} pending)` : ''}`);
@@ -532,6 +577,38 @@ async function checkSettingsAndPRs() {
   
   // Record the timestamp of this query
   store.set('lastQueryTime', Date.now());
+  
+  // Handle errors if any occurred
+  if (result.hasErrors && result.errors && result.errors.length > 0) {
+    console.error('PR check returned errors:', result.errors);
+    
+    // Store the error state
+    store.set('lastCheckHadErrors', true);
+    store.set('lastCheckErrors', result.errors);
+    
+    // Show a notification for the first error
+    const firstError = result.errors[0];
+    const notification = new Notification({
+      title: 'PR Notifier Error',
+      body: firstError.message,
+      icon: process.platform === 'darwin' ? undefined : getAppIconPath() // macOS doesn't need icon
+    });
+    
+    notification.on('click', () => {
+      const trayBounds = tray?.getBounds();
+      showWindow(trayBounds);
+      // If it's an auth error, show settings
+      if (firstError.type === 'auth') {
+        mainWindow?.webContents.send('show-settings');
+      }
+    });
+    
+    notification.show();
+  } else {
+    // Clear any previous error state
+    store.set('lastCheckHadErrors', false);
+    store.delete('lastCheckErrors');
+  }
   
   // Make sure to update the tray menu after getting PRs
   updateTrayMenu();

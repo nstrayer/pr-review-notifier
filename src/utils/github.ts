@@ -31,10 +31,103 @@ const store = new Store<StoreSchema>({
   name: process.env.ELECTRON_STORE_PATH ? path.basename(process.env.ELECTRON_STORE_PATH, '.json') : undefined
 });
 
+// Helper function to parse GitHub API errors and provide detailed messages
+function parseGitHubError(error: any, context: string = ''): { type: 'auth' | 'network' | 'repo_access' | 'rate_limit' | 'unknown'; message: string; details?: string } {
+  const status = error.status || error.response?.status;
+  const responseData = error.response?.data;
+  const gitHubMessage = responseData?.message || '';
+  const documentationUrl = responseData?.documentation_url;
+  
+  // Network errors
+  if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+    return {
+      type: 'network',
+      message: 'Unable to connect to GitHub',
+      details: 'Check your internet connection and try again.'
+    };
+  }
+  
+  // Authentication errors (401)
+  if (status === 401) {
+    let message = 'GitHub authentication failed';
+    let details = 'Your token may be expired, invalid, or revoked.';
+    
+    if (gitHubMessage.toLowerCase().includes('bad credentials')) {
+      message = 'Invalid GitHub token';
+      details = 'The token appears to be malformed or incorrect. Generate a new personal access token.';
+    } else if (gitHubMessage.toLowerCase().includes('token expired')) {
+      message = 'GitHub token has expired';
+      details = 'Please generate a new personal access token with the same permissions.';
+    } else if (gitHubMessage.toLowerCase().includes('revoked')) {
+      message = 'GitHub token has been revoked';
+      details = 'The token was revoked. Generate a new personal access token.';
+    }
+    
+    return { type: 'auth', message, details };
+  }
+  
+  // Permission/scope errors (403)
+  if (status === 403) {
+    // Rate limiting
+    if (error.response?.headers?.['x-ratelimit-remaining'] === '0') {
+      const resetTime = error.response?.headers?.['x-ratelimit-reset'];
+      let resetDetails = '';
+      if (resetTime) {
+        const resetDate = new Date(parseInt(resetTime) * 1000);
+        resetDetails = ` Rate limit resets at ${resetDate.toLocaleTimeString()}.`;
+      }
+      
+      return {
+        type: 'rate_limit',
+        message: 'GitHub API rate limit exceeded',
+        details: `You've made too many requests.${resetDetails} Consider using a personal access token for higher limits.`
+      };
+    }
+    
+    // Permission issues
+    if (gitHubMessage.toLowerCase().includes('scopes') || gitHubMessage.toLowerCase().includes('permission')) {
+      return {
+        type: 'auth',
+        message: 'Insufficient token permissions',
+        details: `Your token needs additional scopes. ${gitHubMessage} Make sure your token has 'repo' scope for private repos or 'public_repo' for public repos.`
+      };
+    }
+    
+    return {
+      type: 'auth',
+      message: 'Access forbidden',
+      details: gitHubMessage || 'Your token may not have the required permissions.'
+    };
+  }
+  
+  // Repository not found (404)
+  if (status === 404) {
+    return {
+      type: 'repo_access',
+      message: `Repository ${context} not found`,
+      details: 'The repository may be private, deleted, or the name is incorrect.'
+    };
+  }
+  
+  // Other errors
+  return {
+    type: 'unknown',
+    message: gitHubMessage || `GitHub API error${context ? ` for ${context}` : ''}`,
+    details: documentationUrl ? `See: ${documentationUrl}` : 'An unexpected error occurred.'
+  };
+}
+
 // Type for PR checking results, includes active and dismissed PRs
 export interface PRCheckResult {
   activePRs: PR[];
   dismissedPRs: PR[];
+  errors?: {
+    type: 'auth' | 'network' | 'repo_access' | 'rate_limit' | 'unknown';
+    message: string;
+    repoName?: string;
+    details?: string;
+  }[];
+  hasErrors?: boolean;
 }
 
 export async function checkForPRs(): Promise<PRCheckResult> {
@@ -132,11 +225,38 @@ export async function checkForPRs(): Promise<PRCheckResult> {
       hasUsername: !!username, 
       reposCount: repos.length 
     });
-    return { activePRs: [], dismissedPRs: [] };
+    
+    const errors = [];
+    if (!token) {
+      errors.push({
+        type: 'auth' as const,
+        message: 'GitHub token not configured. Please add your token in settings.'
+      });
+    }
+    if (!username) {
+      errors.push({
+        type: 'auth' as const,
+        message: 'GitHub username not configured. Please add your username in settings.'
+      });
+    }
+    if (repos.length === 0) {
+      errors.push({
+        type: 'auth' as const,
+        message: 'No repositories configured. Please add repositories to monitor in settings.'
+      });
+    }
+    
+    return { 
+      activePRs: [], 
+      dismissedPRs: [],
+      errors,
+      hasErrors: true
+    };
   }
   
   const octokit = new Octokit({ auth: token });
   const pendingPRs: PR[] = [];
+  const errors: Array<{ type: 'auth' | 'network' | 'repo_access' | 'rate_limit' | 'unknown'; message: string; repoName?: string; details?: string }> = [];
   
   // Track all valid PR IDs that currently exist in GitHub
   const validPRIds: number[] = [];
@@ -150,8 +270,18 @@ export async function checkForPRs(): Promise<PRCheckResult> {
       // Check if the repository exists and is accessible
       try {
         await octokit.repos.get({ owner, repo });
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Repository ${repoFullName} not found or not accessible:`, error);
+        
+        const parsedError = parseGitHubError(error, repoFullName);
+        
+        errors.push({
+          type: parsedError.type,
+          message: parsedError.message,
+          details: parsedError.details,
+          repoName: repoFullName
+        });
+        
         continue;
       }
       
@@ -234,8 +364,16 @@ export async function checkForPRs(): Promise<PRCheckResult> {
         }
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error checking PRs:', error);
+    
+    const parsedError = parseGitHubError(error);
+    
+    errors.push({
+      type: parsedError.type,
+      message: parsedError.message,
+      details: parsedError.details
+    });
   }
   
   // Filter the dismissed PR IDs to only include valid ones
@@ -282,8 +420,13 @@ export async function checkForPRs(): Promise<PRCheckResult> {
   
   // The main process will handle updating the tray menu after receiving the results
   
-  console.log(`checkForPRs returning ${activePRs.length} active PRs and ${dismissedPRs.length} dismissed PRs`);
-  return { activePRs, dismissedPRs };
+  console.log(`checkForPRs returning ${activePRs.length} active PRs and ${dismissedPRs.length} dismissed PRs${errors.length > 0 ? ` with ${errors.length} errors` : ''}`);
+  return { 
+    activePRs, 
+    dismissedPRs,
+    errors: errors.length > 0 ? errors : undefined,
+    hasErrors: errors.length > 0
+  };
 }
 
 export async function openPR(url: string): Promise<void> {
