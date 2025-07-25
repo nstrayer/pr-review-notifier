@@ -8,7 +8,6 @@
     "build": "tsc -p . && webpack && node copyHtml.js && node copyAssets.js",
     "dev": "npm run build && npm run start-dev",
     "pack": "electron-builder --dir",
-    "electron": "^35.0.1",
     "optimize": "node optimize-build.js",
     "dist": "npm run build && npm run optimize && npx electron-builder --mac --arm64",
     "dist:unsigned": "npm run build && npm run optimize && CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --config=electron-builder-unsigned.json",
