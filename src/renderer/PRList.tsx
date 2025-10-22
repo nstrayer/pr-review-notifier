@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
 import { shell, ipcRenderer } from 'electron';
+import ReviewStatusBadge from './ReviewStatusBadge';
+
+interface ReviewInfo {
+  reviewerLogin: string;
+  reviewerName: string | null;
+  state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'PENDING';
+}
 
 interface PR {
   id: number;
@@ -7,6 +14,8 @@ interface PR {
   title: string;
   html_url: string;
   repo: string;
+  reviews?: ReviewInfo[];
+  isAuthored?: boolean;
 }
 
 interface PRListProps {
@@ -14,22 +23,26 @@ interface PRListProps {
   title?: string;
   isDismissed?: boolean;
   collapsible?: boolean;
+  showReviewStatus?: boolean;
   onDismiss?: (prId: number) => void;
   onUndismiss?: (prId: number) => void;
 }
 
-const PRList: React.FC<PRListProps> = ({ 
-  prs, 
-  title, 
-  isDismissed = false, 
+const PRList: React.FC<PRListProps> = ({
+  prs,
+  title,
+  isDismissed = false,
   collapsible = false,
-  onDismiss, 
-  onUndismiss 
+  showReviewStatus = false,
+  onDismiss,
+  onUndismiss
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
   
   const handleOpenPR = (url: string) => {
     shell.openExternal(url);
+    // Close the window after opening the external link
+    ipcRenderer.send('hide-window');
   };
   
   const handleDismiss = (prId: number) => {
@@ -39,18 +52,8 @@ const PRList: React.FC<PRListProps> = ({
   const handleUndismiss = (prId: number) => {
     if (onUndismiss) onUndismiss(prId);
   };
-  
-  // If no PRs and not showing a title, show the empty state
-  if (prs.length === 0 && !title) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        <h3 className="text-lg font-medium mb-2 text-gray-700">No pull requests waiting for your review</h3>
-        <p className="text-sm m-0 text-gray-500">When someone requests your review, they'll appear here.</p>
-      </div>
-    );
-  }
-  
-  // If no PRs but showing a title, just return null
+
+  // If no PRs, just return null - empty states are handled by parent
   if (prs.length === 0) {
     return null;
   }
@@ -81,7 +84,10 @@ const PRList: React.FC<PRListProps> = ({
               data-testid="pr-item"
               className={`border-b border-gray-200 p-4 cursor-default transition-all duration-200 rounded-md mb-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 ${isDismissed ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'}`}
             >
-              <h3 className={`text-base font-semibold mb-2 ${isDismissed ? 'text-gray-600' : 'text-blue-600'}`}>
+              <h3
+                className={`text-base font-semibold mb-2 cursor-pointer hover:underline ${isDismissed ? 'text-gray-600' : 'text-blue-600'}`}
+                onClick={() => handleOpenPR(pr.html_url)}
+              >
                 {pr.title}
               </h3>
               <div className="text-sm text-gray-500 flex items-center mb-3">
@@ -90,6 +96,22 @@ const PRList: React.FC<PRListProps> = ({
                 </span>
                 <span>#{pr.number}</span>
               </div>
+
+              {/* Review Status Section */}
+              {showReviewStatus && pr.reviews && (
+                <div className="mb-3">
+                  {pr.reviews.length === 0 ? (
+                    <div className="text-xs text-gray-500 italic">No reviews yet</div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {pr.reviews.map((review) => (
+                        <ReviewStatusBadge key={review.reviewerLogin} review={review} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-2 mt-3 pt-2 border-t border-gray-100">
                 <button
                   className="flex-1 px-3 py-1.5 bg-blue-500 text-white hover:bg-blue-600 rounded text-xs font-medium transition-colors"

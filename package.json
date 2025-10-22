@@ -1,6 +1,6 @@
 {
   "name": "pr-notifier-app",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "dist/main/index.js",
   "scripts": {
     "start": "electron .",
@@ -8,7 +8,6 @@
     "build": "tsc -p . && webpack && node copyHtml.js && node copyAssets.js",
     "dev": "npm run build && npm run start-dev",
     "pack": "electron-builder --dir",
-    "electron": "^35.0.1",
     "optimize": "node optimize-build.js",
     "dist": "npm run build && npm run optimize && npx electron-builder --mac --arm64",
     "dist:debug": "npm run build && npm run optimize && DEBUG=electron-builder,electron-notarize* npx electron-builder --mac --arm64",
@@ -34,7 +33,6 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "electron": "^25.0.0",
     "@playwright/test": "^1.51.1",
     "@types/node": "^22.13.10",
     "@types/node-notifier": "^8.0.5",
@@ -44,6 +42,7 @@
     "css-loader": "^7.1.2",
     "dotenv": "^16.4.7",
     "dotenv-cli": "^8.0.0",
+    "electron": "^25.0.0",
     "electron-builder": "^25.1.8",
     "electron-notarize": "^1.2.2",
     "postcss": "^8.5.3",

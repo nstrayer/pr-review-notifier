@@ -21,6 +21,7 @@ interface StoreSchema {
   username: string;
   checkInterval: number;
   pendingPRs: any[];
+  authoredPRs: any[];
   notifiedPRs: number[];
   dismissedPRs: number[];
   autoLaunch: boolean;
@@ -49,6 +50,7 @@ const schema: StoreSchema = {
   username: '',
   checkInterval: 15,
   pendingPRs: [],
+  authoredPRs: [],
   notifiedPRs: [],
   dismissedPRs: [],
   autoLaunch: true,
@@ -147,17 +149,11 @@ function createWindow() {
   // Handle window load completion
   mainWindow?.webContents.on('did-finish-load', () => {
     console.log('Window content loaded successfully');
-    
-    // Only open DevTools in development and not in test mode
-    if (process.env.NODE_ENV === 'development' ) {
-      mainWindow?.webContents.openDevTools({ mode: 'detach' });
-    }
-    
+
     // Add Escape key handler to close the window without beep sound
     if (mainWindow) {
       mainWindow.webContents.on('before-input-event', (event, input) => {
         if (input.type === 'keyDown' && input.key === 'Escape') {
-          console.log('Escape key pressed, hiding window');
           event.preventDefault(); // Prevent default behavior (beep sound)
           mainWindow?.hide();
         }
@@ -174,17 +170,29 @@ function createWindow() {
     return true;
   });
 
-  // // Hide the window when it loses focus
-  // mainWindow.on('blur', () => {
-  //   if (!mainWindow?.webContents.isDevToolsOpened()) {
-  //     // Add a small delay to prevent immediate hiding when clicking
-  //     setTimeout(() => {
-  //       if (mainWindow && mainWindow.isVisible()) {
-  //         mainWindow.hide();
-  //       }
-  //     }, 100);
-  //   }
-  // });
+  // Hide the window when it loses focus
+  mainWindow.on('blur', () => {
+    if (!mainWindow?.webContents.isDevToolsOpened()) {
+      setTimeout(() => {
+        if (mainWindow && mainWindow.isVisible()) {
+          mainWindow.hide();
+        }
+      }, 100);
+    }
+  });
+
+  // Additional mechanism for macOS: monitor when app loses focus entirely
+  if (process.platform === 'darwin') {
+    app.on('browser-window-blur', () => {
+      if (mainWindow && mainWindow.isVisible() && !mainWindow.webContents.isDevToolsOpened()) {
+        setTimeout(() => {
+          if (mainWindow && mainWindow.isVisible()) {
+            mainWindow.hide();
+          }
+        }, 100);
+      }
+    });
+  }
 }
 
 function createTray() {
@@ -491,6 +499,9 @@ function showWindow(trayBounds?: Electron.Rectangle) {
   mainWindow.setPosition(x, y, false);
   mainWindow.show();
 
+  // Notify renderer that window is now visible so it can refresh data from store
+  mainWindow.webContents.send('window-shown');
+
   // // Reset workspaces setting after showing
   // if (process.platform === 'darwin') {
   //   setTimeout(() => {
@@ -683,6 +694,7 @@ ipcMain.handle('get-settings', () => {
     username: store.get('username', ''),
     checkInterval: store.get('checkInterval', DEFAULT_CHECK_INTERVAL),
     pendingPRs: store.get('pendingPRs', []),
+    authoredPRs: store.get('authoredPRs', []),
     autoLaunch: store.get('autoLaunch', true),
     enableNotifications: store.get('enableNotifications', true),
     devShowSamplePRs: store.get('devShowSamplePRs', false),

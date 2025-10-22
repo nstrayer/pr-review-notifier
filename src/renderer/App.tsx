@@ -4,12 +4,20 @@ import Settings from './Settings';
 import PRList from './PRList';
 import { formatDistanceToNow } from 'date-fns';
 
+interface ReviewInfo {
+  reviewerLogin: string;
+  reviewerName: string | null;
+  state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'PENDING';
+}
+
 interface PR {
   id: number;
   number: number;
   title: string;
   html_url: string;
   repo: string;
+  reviews?: ReviewInfo[];
+  isAuthored?: boolean;
 }
 
 interface CheckError {
@@ -23,6 +31,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'prs' | 'settings'>('prs');
   const [activePRs, setActivePRs] = useState<PR[]>([]);
   const [dismissedPRs, setDismissedPRs] = useState<PR[]>([]);
+  const [authoredPRs, setAuthoredPRs] = useState<PR[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [lastQueryTime, setLastQueryTime] = useState<number>(0);
   const [checkErrors, setCheckErrors] = useState<CheckError[]>([]);
@@ -32,22 +41,27 @@ const App: React.FC = () => {
     const loadPRs = async () => {
       try {
         const settings = await ipcRenderer.invoke('get-settings');
-        
+
         // Load pending PRs from store
         if (settings && settings.pendingPRs) {
           setActivePRs(settings.pendingPRs);
         }
-        
+
+        // Load authored PRs from store
+        if (settings && settings.authoredPRs) {
+          setAuthoredPRs(settings.authoredPRs);
+        }
+
         // Load last query time
         if (settings && settings.lastQueryTime) {
           setLastQueryTime(settings.lastQueryTime);
         }
-        
+
         // Load any stored errors
         if (settings && settings.lastCheckHadErrors && settings.lastCheckErrors) {
           setCheckErrors(settings.lastCheckErrors);
         }
-        
+
         // Check if settings are incomplete and switch to settings tab if needed
         const missingSettings = !settings.token || !settings.username || settings.repos.length === 0;
         if (missingSettings) {
@@ -61,16 +75,22 @@ const App: React.FC = () => {
     loadPRs();
     // Check for PRs
     handleRefresh();
-    
+
     // Set up a listener for settings changes
     ipcRenderer.on('settings-updated', () => {
       console.log('Settings updated, refreshing...');
       handleRefresh();
     });
-    
+
     // Listen for 'show-settings' event from main process
     ipcRenderer.on('show-settings', () => {
       setActiveTab('settings');
+    });
+
+    // Listen for 'window-shown' event to refresh data from store when window opens
+    ipcRenderer.on('window-shown', () => {
+      console.log('Window shown, refreshing from store...');
+      loadPRs();
     });
     
     // Add Escape key handler to prevent beep and close window
@@ -86,6 +106,7 @@ const App: React.FC = () => {
     return () => {
       ipcRenderer.removeAllListeners('show-settings');
       ipcRenderer.removeAllListeners('settings-updated');
+      ipcRenderer.removeAllListeners('window-shown');
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
@@ -109,11 +130,12 @@ const App: React.FC = () => {
       const updatedSettings = await ipcRenderer.invoke('get-settings');
       setLastQueryTime(updatedSettings.lastQueryTime);
       
-      // Set the active and dismissed PRs in local state
-      console.log(`Received ${result.activePRs.length} active PRs and ${result.dismissedPRs.length} dismissed PRs${result.hasErrors ? ' with errors' : ''}`);
+      // Set the active, dismissed, and authored PRs in local state
+      console.log(`Received ${result.activePRs.length} active PRs, ${result.dismissedPRs.length} dismissed PRs, and ${result.authoredPRs?.length || 0} authored PRs${result.hasErrors ? ' with errors' : ''}`);
       setActivePRs(result.activePRs);
       setDismissedPRs(result.dismissedPRs);
-      
+      setAuthoredPRs(result.authoredPRs || []);
+
       // Set errors if any
       if (result.errors) {
         setCheckErrors(result.errors);
@@ -230,62 +252,118 @@ const App: React.FC = () => {
               </div>
             )}
             
-            {/* Active PRs */}
-            <PRList 
-              prs={activePRs} 
-              title="PRs Waiting for Review"
-              onDismiss={async (prId) => {
-                try {
-                  console.log(`Dismissing PR with ID: ${prId}`);
-                  const success = await ipcRenderer.invoke('dismiss-pr', prId);
-                  
-                  if (success) {
-                    console.log('PR dismissed successfully');
-                    
-                    // Update local state
-                    const prToDismiss = activePRs.find(pr => pr.id === prId);
-                    
-                    // Move PR from active to dismissed
-                    if (prToDismiss) {
-                      setActivePRs(prevPRs => prevPRs.filter(pr => pr.id !== prId));
-                      setDismissedPRs(prevDismissed => [...prevDismissed, prToDismiss]);
-                    }
-                  }
-                } catch (error) {
-                  console.error('Error dismissing PR:', error);
-                }
-              }}
-            />
-            
-            {/* Dismissed PRs */}
-            {dismissedPRs.length > 0 && (
-              <PRList 
-                prs={dismissedPRs}
-                title="Dismissed PRs"
-                isDismissed={true}
-                collapsible={true}
-                onUndismiss={async (prId) => {
-                  try {
-                    console.log(`Undismissing PR with ID: ${prId}`);
-                    const success = await ipcRenderer.invoke('undismiss-pr', prId);
-                    
-                    if (success) {
-                      console.log('PR undismissed successfully');
-                      
-                      // Update local state
-                      const prToUndismiss = dismissedPRs.find(pr => pr.id === prId);
-                      
-                      // Move PR from dismissed to active
-                      if (prToUndismiss) {
-                        setDismissedPRs(prevDismissed => prevDismissed.filter(pr => pr.id !== prId));
-                        setActivePRs(prevActive => [...prevActive, prToUndismiss]);
+            {/* Active PRs - Reviews requested of you */}
+            {activePRs.length === 0 && dismissedPRs.length === 0 && authoredPRs.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <h3 className="text-lg font-medium mb-2 text-gray-700">No pull requests</h3>
+                <p className="text-sm m-0 text-gray-500">When you have PRs to review or PRs you've created, they'll appear here.</p>
+              </div>
+            ) : (
+              <>
+                <PRList
+                  prs={activePRs}
+                  title="Reviews Requested"
+                  onDismiss={async (prId) => {
+                    try {
+                      console.log(`Dismissing PR with ID: ${prId}`);
+                      const success = await ipcRenderer.invoke('dismiss-pr', prId);
+
+                      if (success) {
+                        console.log('PR dismissed successfully');
+
+                        // Update local state
+                        const prToDismiss = activePRs.find(pr => pr.id === prId);
+
+                        // Move PR from active to dismissed
+                        if (prToDismiss) {
+                          setActivePRs(prevPRs => prevPRs.filter(pr => pr.id !== prId));
+                          setDismissedPRs(prevDismissed => [...prevDismissed, prToDismiss]);
+                        }
                       }
+                    } catch (error) {
+                      console.error('Error dismissing PR:', error);
                     }
-                  } catch (error) {
-                    console.error('Error undismissing PR:', error);
-                  }
-                }}
-              />
+                  }}
+                />
+
+                {activePRs.length === 0 && (
+                  <div className="text-center py-8 text-gray-400 text-sm mb-6">
+                    No PRs waiting for your review
+                  </div>
+                )}
+
+                {/* Dismissed PRs */}
+                {dismissedPRs.length > 0 && (
+                  <PRList
+                    prs={dismissedPRs}
+                    title="Dismissed PRs"
+                    isDismissed={true}
+                    collapsible={true}
+                    onUndismiss={async (prId) => {
+                      try {
+                        console.log(`Undismissing PR with ID: ${prId}`);
+                        const success = await ipcRenderer.invoke('undismiss-pr', prId);
+
+                        if (success) {
+                          console.log('PR undismissed successfully');
+
+                          // Update local state
+                          const prToUndismiss = dismissedPRs.find(pr => pr.id === prId);
+
+                          // Move PR from dismissed to active
+                          if (prToUndismiss) {
+                            setDismissedPRs(prevDismissed => prevDismissed.filter(pr => pr.id !== prId));
+                            setActivePRs(prevActive => [...prevActive, prToUndismiss]);
+                          }
+                        }
+                      } catch (error) {
+                        console.error('Error undismissing PR:', error);
+                      }
+                    }}
+                  />
+                )}
+
+                {/* Your PRs - Split into awaiting reviews and reviewed */}
+                {(() => {
+                  // Split authored PRs into those awaiting reviews and those that have received reviews
+                  const awaitingReviews = authoredPRs.filter(pr =>
+                    !pr.reviews || pr.reviews.length === 0 || pr.reviews.every(r => r.state === 'PENDING')
+                  );
+                  const receivedReviews = authoredPRs.filter(pr =>
+                    pr.reviews && pr.reviews.some(r => r.state !== 'PENDING')
+                  );
+
+                  return (
+                    <>
+                      {/* Awaiting Reviews */}
+                      {awaitingReviews.length > 0 && (
+                        <PRList
+                          prs={awaitingReviews}
+                          title="Your PRs - Awaiting Reviews"
+                          showReviewStatus={true}
+                          collapsible={false}
+                        />
+                      )}
+
+                      {authoredPRs.length > 0 && awaitingReviews.length === 0 && receivedReviews.length === 0 && (
+                        <div className="text-center py-8 text-gray-400 text-sm mb-6">
+                          No PRs awaiting reviews
+                        </div>
+                      )}
+
+                      {/* Received Reviews */}
+                      {receivedReviews.length > 0 && (
+                        <PRList
+                          prs={receivedReviews}
+                          title="Your PRs - Reviews Received"
+                          showReviewStatus={true}
+                          collapsible={false}
+                        />
+                      )}
+                    </>
+                  );
+                })()}
+              </>
             )}
           </div>
         ) : (
