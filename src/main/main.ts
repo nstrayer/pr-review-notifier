@@ -1,19 +1,20 @@
-import { 
-  app, 
-  BrowserWindow, 
-  Menu, 
-  Tray, 
-  nativeImage, 
-  ipcMain, 
-  Notification, 
+import {
+  app,
+  BrowserWindow,
+  Menu,
+  Tray,
+  nativeImage,
+  ipcMain,
+  Notification,
   MenuItemConstructorOptions,
   screen,
-  shell 
+  shell
 } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { checkForPRs } from '../utils/github';
 import Store from 'electron-store';
+import { validateGitHubToken, validateRepository, validateUsername, validateCheckInterval } from '../utils/inputValidator';
 
 interface StoreSchema {
   token: string;
@@ -637,7 +638,7 @@ app.whenReady().then(() => {
   
   // For macOS menu bar apps, we need to hide from the dock
   if (process.platform === 'darwin') {
-    app.dock.hide();
+    app.dock?.hide();
   }
   
   // Set up periodic garbage collection to reduce memory usage
@@ -672,11 +673,45 @@ app.on('before-quit', () => {
 
 // IPC handlers for renderer process
 ipcMain.handle('save-settings', (event, settings) => {
-  if (settings.token !== undefined) store.set('token', settings.token);
-  if (settings.repos !== undefined) store.set('repos', settings.repos);
-  if (settings.username !== undefined) store.set('username', settings.username);
-  if (settings.checkInterval !== undefined) store.set('checkInterval', settings.checkInterval);
+  // Validate token if provided
+  if (settings.token !== undefined) {
+    if (settings.token && !validateGitHubToken(settings.token)) {
+      throw new Error('Invalid GitHub token format');
+    }
+    store.set('token', settings.token);
+  }
+
+  // Validate username if provided
+  if (settings.username !== undefined) {
+    if (settings.username && !validateUsername(settings.username)) {
+      throw new Error('Invalid GitHub username format');
+    }
+    store.set('username', settings.username);
+  }
+
+  // Validate repos if provided
+  if (settings.repos !== undefined) {
+    if (Array.isArray(settings.repos)) {
+      for (const repo of settings.repos) {
+        if (!validateRepository(repo)) {
+          throw new Error(`Invalid repository format: ${repo}`);
+        }
+      }
+      store.set('repos', settings.repos);
+    }
+  }
+
+  // Validate check interval if provided
+  if (settings.checkInterval !== undefined) {
+    if (!validateCheckInterval(settings.checkInterval)) {
+      throw new Error('Invalid check interval. Must be between 1 and 1440 minutes.');
+    }
+    store.set('checkInterval', settings.checkInterval);
+  }
+
+  // Save non-validated settings
   if (settings.enableNotifications !== undefined) store.set('enableNotifications', settings.enableNotifications);
+
   return true;
 });
 
