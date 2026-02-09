@@ -4,6 +4,7 @@ import Store from 'electron-store';
 import notifier from 'node-notifier';
 import path from 'path';
 import fs from 'fs';
+import { validateGitHubURL } from './inputValidator';
 
 export interface ReviewInfo {
   reviewerLogin: string;
@@ -542,5 +543,11 @@ export async function checkForPRs(): Promise<PRCheckResult> {
 }
 
 export async function openPR(url: string): Promise<void> {
+  // Security: Validate URL before opening to prevent malicious URLs
+  if (!validateGitHubURL(url)) {
+    console.error('Invalid GitHub URL rejected:', url);
+    throw new Error('Invalid GitHub URL. Only GitHub.com URLs are allowed.');
+  }
+
   await shell.openExternal(url);
 }

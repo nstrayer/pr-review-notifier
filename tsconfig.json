@@ -11,5 +11,6 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.spec.ts", "tests/**/*"],
   "typeRoots": ["./node_modules/@types", "./src/types"]
 }

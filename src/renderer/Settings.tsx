@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ipcRenderer } from 'electron';
+import { validateGitHubToken, validateRepository, validateUsername, validateCheckInterval } from '../utils/inputValidator';
 
 interface SettingsProps {
   onSave: () => void;
@@ -18,6 +19,11 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
   const [showDevOptions, setShowDevOptions] = useState(false);
   const [showSamplePRs, setShowSamplePRs] = useState(false);
   const isDev = process.env.NODE_ENV === 'development' || true; // Force true for demo purposes
+
+  // Validation error states
+  const [tokenError, setTokenError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [repoError, setRepoError] = useState('');
   
   useEffect(() => {
     loadSettings();
@@ -56,10 +62,24 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
   };
   
   const handleAddRepo = () => {
-    if (newRepo && !repos.includes(newRepo)) {
-      setRepos([...repos, newRepo]);
-      setNewRepo('');
+    // Clear previous error
+    setRepoError('');
+
+    // Validate repository format
+    if (!validateRepository(newRepo)) {
+      setRepoError('Invalid repository format. Use: owner/repo (e.g., facebook/react). Special characters and path traversal patterns are not allowed.');
+      return;
     }
+
+    // Check for duplicates
+    if (repos.includes(newRepo)) {
+      setRepoError('This repository is already in your list.');
+      return;
+    }
+
+    // Add valid repository
+    setRepos([...repos, newRepo]);
+    setNewRepo('');
   };
   
   const handleRemoveRepo = (repo: string) => {
@@ -67,6 +87,46 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
   };
   
   const handleSave = async () => {
+    // Clear previous errors
+    setTokenError('');
+    setUsernameError('');
+    setRepoError('');
+
+    // Validate all inputs before saving
+    let hasErrors = false;
+
+    // Validate token
+    if (token && !validateGitHubToken(token)) {
+      setTokenError('Invalid GitHub token format. Token must start with ghp_, gho_, or ghs_ followed by at least 36 alphanumeric characters.');
+      hasErrors = true;
+    }
+
+    // Validate username
+    if (username && !validateUsername(username)) {
+      setUsernameError('Invalid GitHub username. Username must be 1-39 characters, alphanumeric with hyphens only, cannot start/end with hyphen.');
+      hasErrors = true;
+    }
+
+    // Validate check interval
+    if (!validateCheckInterval(checkInterval)) {
+      setRepoError('Check interval must be between 1 and 1440 minutes.');
+      hasErrors = true;
+    }
+
+    // Validate all repos in the list
+    for (const repo of repos) {
+      if (!validateRepository(repo)) {
+        setRepoError(`Invalid repository in list: ${repo}. Please remove it and add a valid repository.`);
+        hasErrors = true;
+        break;
+      }
+    }
+
+    // Don't save if there are validation errors
+    if (hasErrors) {
+      return;
+    }
+
     setIsSaving(true);
     try {
       await ipcRenderer.invoke('save-settings', {
@@ -77,14 +137,14 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
         autoLaunch,
         enableNotifications,
       });
-      
+
       // Update missing settings status
       const missing = !token || !username || repos.length === 0;
       setMissingSettings(missing);
-      
+
       // Update auto launch setting
       await ipcRenderer.invoke('toggle-auto-launch', autoLaunch);
-      
+
       // For development mode, save the sample PRs setting
       if (isDev) {
         await ipcRenderer.invoke('save-dev-settings', {
@@ -92,10 +152,11 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
         });
         console.log(`Set devShowSamplePRs to ${showSamplePRs}`);
       }
-      
+
       onSave();
     } catch (error) {
       console.error('Error saving settings:', error);
+      setRepoError('Failed to save settings. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -120,10 +181,16 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
           id="token"
           type="password"
           value={token}
-          onChange={(e) => setToken(e.target.value)}
+          onChange={(e) => {
+            setToken(e.target.value);
+            setTokenError(''); // Clear error on change
+          }}
           placeholder="ghp_xxxxxxxxxxxx"
-          className="w-full px-3 py-2.5 rounded-md border border-gray-200 mb-3 text-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none bg-gray-50"
+          className={`w-full px-3 py-2.5 rounded-md border ${tokenError ? 'border-red-500' : 'border-gray-200'} mb-3 text-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none bg-gray-50`}
         />
+        {tokenError && (
+          <p className="text-xs text-red-600 mb-2">{tokenError}</p>
+        )}
         <p className="text-xs text-gray-500">Create a token with 'repo' scope at GitHub Developer Settings</p>
       </div>
       
@@ -135,10 +202,16 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
           id="username"
           type="text"
           value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          onChange={(e) => {
+            setUsername(e.target.value);
+            setUsernameError(''); // Clear error on change
+          }}
           placeholder="Your GitHub username"
-          className="w-full px-3 py-2.5 rounded-md border border-gray-200 mb-3 text-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none bg-gray-50"
+          className={`w-full px-3 py-2.5 rounded-md border ${usernameError ? 'border-red-500' : 'border-gray-200'} mb-3 text-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none bg-gray-50`}
         />
+        {usernameError && (
+          <p className="text-xs text-red-600 mb-2">{usernameError}</p>
+        )}
       </div>
       
       <div className="mb-7">
@@ -149,17 +222,28 @@ const Settings: React.FC<SettingsProps> = ({ onSave }) => {
           <input
             type="text"
             value={newRepo}
-            onChange={(e) => setNewRepo(e.target.value)}
+            onChange={(e) => {
+              setNewRepo(e.target.value);
+              setRepoError(''); // Clear error on change
+            }}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleAddRepo();
+              }
+            }}
             placeholder="owner/repo (e.g. facebook/react)"
-            className="flex-1 px-3 py-2.5 rounded-md border border-gray-200 text-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none bg-gray-50"
+            className={`flex-1 px-3 py-2.5 rounded-md border ${repoError ? 'border-red-500' : 'border-gray-200'} text-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none bg-gray-50`}
           />
-          <button 
+          <button
             className="px-4 py-2 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white border-none rounded-md cursor-pointer font-medium transition-colors"
             onClick={handleAddRepo}
           >
             Add
           </button>
         </div>
+        {repoError && (
+          <p className="text-xs text-red-600 mb-2">{repoError}</p>
+        )}
         
         <div className="max-h-44 overflow-y-auto border border-gray-200 p-3 mt-3 rounded-md bg-gray-50">
           {repos.length === 0 ? (
