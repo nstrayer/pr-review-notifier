@@ -174,8 +174,9 @@ struct GitHubService {
     ) async throws -> [GitHubPullRequest] {
         var allPRs: [GitHubPullRequest] = []
         var page = 1
+        let maxPages = 50
 
-        while true {
+        while page <= maxPages {
             let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/pulls?state=open&per_page=100&page=\(page)")!
             let data = try await request(url: url, token: token)
             let prs = try Self.snakeCaseDecoder.decode([GitHubPullRequest].self, from: data)
@@ -199,9 +200,21 @@ struct GitHubService {
     private func listReviews(
         token: String, owner: String, repo: String, pullNumber: Int
     ) async throws -> [GitHubReview] {
-        let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/pulls/\(pullNumber)/reviews")!
-        let data = try await request(url: url, token: token)
-        return try Self.snakeCaseDecoder.decode([GitHubReview].self, from: data)
+        var allReviews: [GitHubReview] = []
+        var page = 1
+        let maxPages = 20
+
+        while page <= maxPages {
+            let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/pulls/\(pullNumber)/reviews?per_page=100&page=\(page)")!
+            let data = try await request(url: url, token: token)
+            let reviews = try Self.snakeCaseDecoder.decode([GitHubReview].self, from: data)
+            allReviews.append(contentsOf: reviews)
+
+            if reviews.count < 100 { break }
+            page += 1
+        }
+
+        return allReviews
     }
 
     // MARK: - HTTP
@@ -239,7 +252,7 @@ struct GitHubService {
         return data
     }
 
-    private static let snakeCaseDecoder: JSONDecoder = {
+    private nonisolated(unsafe) static let snakeCaseDecoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return decoder
