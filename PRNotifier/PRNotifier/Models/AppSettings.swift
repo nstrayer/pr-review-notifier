@@ -15,61 +15,58 @@ final class AppSettings {
     }
 
     var repos: [String] {
-        get {
-            if let data = defaults.data(forKey: Keys.repos),
-               let decoded = try? JSONDecoder().decode([String].self, from: data) {
-                return decoded
-            }
-            return []
-        }
-        set {
-            if let data = try? JSONEncoder().encode(newValue) {
+        didSet {
+            if let data = try? JSONEncoder().encode(repos) {
                 defaults.set(data, forKey: Keys.repos)
             }
         }
     }
 
     var username: String {
-        get { defaults.string(forKey: Keys.username) ?? "" }
-        set { defaults.set(newValue, forKey: Keys.username) }
+        didSet { defaults.set(username, forKey: Keys.username) }
     }
 
     var checkInterval: Int {
-        get {
-            let val = defaults.integer(forKey: Keys.checkInterval)
-            return val > 0 ? val : 15
-        }
-        set { defaults.set(newValue, forKey: Keys.checkInterval) }
+        didSet { defaults.set(checkInterval, forKey: Keys.checkInterval) }
     }
 
     var enableNotifications: Bool {
-        get {
-            if defaults.object(forKey: Keys.enableNotifications) == nil { return true }
-            return defaults.bool(forKey: Keys.enableNotifications)
-        }
-        set { defaults.set(newValue, forKey: Keys.enableNotifications) }
+        didSet { defaults.set(enableNotifications, forKey: Keys.enableNotifications) }
     }
 
     var autoLaunch: Bool {
-        get {
-            if defaults.object(forKey: Keys.autoLaunch) == nil { return true }
-            return defaults.bool(forKey: Keys.autoLaunch)
-        }
-        set { defaults.set(newValue, forKey: Keys.autoLaunch) }
+        didSet { defaults.set(autoLaunch, forKey: Keys.autoLaunch) }
     }
 
     var settingsPrompted: Bool {
-        get { defaults.bool(forKey: Keys.settingsPrompted) }
-        set { defaults.set(newValue, forKey: Keys.settingsPrompted) }
+        didSet { defaults.set(settingsPrompted, forKey: Keys.settingsPrompted) }
     }
 
     var devShowSamplePRs: Bool {
-        get { defaults.bool(forKey: Keys.devShowSamplePRs) }
-        set { defaults.set(newValue, forKey: Keys.devShowSamplePRs) }
+        didSet { defaults.set(devShowSamplePRs, forKey: Keys.devShowSamplePRs) }
     }
 
     var isConfigured: Bool {
-        let token = KeychainService.getToken()
-        return token != nil && !token!.isEmpty && !username.isEmpty && !repos.isEmpty
+        if let token = KeychainService.getToken(), !token.isEmpty {
+            return !username.isEmpty && !repos.isEmpty
+        }
+        return false
+    }
+
+    init() {
+        // Load stored values (must set all stored properties before didSet can fire)
+        if let data = defaults.data(forKey: Keys.repos),
+           let decoded = try? JSONDecoder().decode([String].self, from: data) {
+            self.repos = decoded
+        } else {
+            self.repos = []
+        }
+        self.username = defaults.string(forKey: Keys.username) ?? ""
+        let interval = defaults.integer(forKey: Keys.checkInterval)
+        self.checkInterval = interval > 0 ? interval : 15
+        self.enableNotifications = defaults.object(forKey: Keys.enableNotifications) == nil ? true : defaults.bool(forKey: Keys.enableNotifications)
+        self.autoLaunch = defaults.object(forKey: Keys.autoLaunch) == nil ? true : defaults.bool(forKey: Keys.autoLaunch)
+        self.settingsPrompted = defaults.bool(forKey: Keys.settingsPrompted)
+        self.devShowSamplePRs = defaults.bool(forKey: Keys.devShowSamplePRs)
     }
 }
