@@ -17,6 +17,7 @@ struct SettingsView: View {
     @State private var errors: [String: String] = [:]
     @State private var showDevOptions = false
     @State private var didLoad = false
+    @State private var showSaveConfirmation = false
 
     var body: some View {
         Form {
@@ -68,7 +69,9 @@ struct SettingsView: View {
                             .font(.body)
                         Spacer()
                         Button {
-                            repos.removeAll { $0 == repo }
+                            if let index = repos.firstIndex(of: repo) {
+                                repos.remove(at: index)
+                            }
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundStyle(.secondary)
@@ -129,6 +132,16 @@ struct SettingsView: View {
                 Button("Save") { save() }
                     .buttonStyle(.borderedProminent)
                     .frame(maxWidth: .infinity)
+
+                if showSaveConfirmation {
+                    HStack {
+                        Spacer()
+                        Label("Settings saved", systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                        Spacer()
+                    }
+                }
             }
         }
         .formStyle(.grouped)
@@ -191,15 +204,19 @@ struct SettingsView: View {
     private func save() {
         errors = [:]
 
-        // Validate token (only if non-empty)
+        // Validate token
         let trimmedToken = token.trimmingCharacters(in: .whitespaces)
-        if !trimmedToken.isEmpty && !InputValidation.validateGitHubToken(trimmedToken) {
+        if trimmedToken.isEmpty {
+            errors["token"] = "GitHub token is required."
+        } else if !InputValidation.validateGitHubToken(trimmedToken) {
             errors["token"] = "Invalid token. Must start with ghp_, gho_, or ghs_ and be 40+ characters."
         }
 
-        // Validate username (only if non-empty)
+        // Validate username
         let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
-        if !trimmedUsername.isEmpty && !InputValidation.validateUsername(trimmedUsername) {
+        if trimmedUsername.isEmpty {
+            errors["username"] = "GitHub username is required."
+        } else if !InputValidation.validateUsername(trimmedUsername) {
             errors["username"] = "Invalid username. Use alphanumeric characters and hyphens only."
         }
 
@@ -229,6 +246,12 @@ struct SettingsView: View {
 
         // Restart polling to pick up changes
         viewModel.restartPolling()
+
+        // Show confirmation
+        showSaveConfirmation = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            showSaveConfirmation = false
+        }
     }
 
     // MARK: - Auto-launch
