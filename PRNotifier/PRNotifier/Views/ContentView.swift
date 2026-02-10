@@ -20,15 +20,13 @@ struct ContentView: View {
             tabBar
 
             // Content
-            ScrollView {
-                switch selectedTab {
-                case .prs:
-                    PRListView()
-                case .settings:
-                    Text("Settings will be available in a future update.")
-                        .foregroundStyle(.secondary)
-                        .padding()
+            switch selectedTab {
+            case .prs:
+                ScrollView {
+                    PRListView(onNavigateToSettings: { selectedTab = .settings })
                 }
+            case .settings:
+                SettingsView()
             }
         }
         .frame(width: 400, height: 500)

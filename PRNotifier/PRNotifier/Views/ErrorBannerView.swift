@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ErrorBannerView: View {
     @Environment(PRViewModel.self) private var viewModel
+    var onNavigateToSettings: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -38,11 +39,15 @@ struct ErrorBannerView: View {
                     }
 
                     if viewModel.errors.contains(where: { $0.type == .auth }) {
-                        // Placeholder -- settings tab switch will be wired in Phase 6
-                        Text("Go to Settings")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                            .underline()
+                        Button {
+                            onNavigateToSettings?()
+                        } label: {
+                            Text("Go to Settings")
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                                .underline()
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }

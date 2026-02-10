@@ -3,13 +3,15 @@ import SwiftUI
 struct PRListView: View {
     @Environment(PRViewModel.self) private var viewModel
 
+    var onNavigateToSettings: (() -> Void)?
+
     @State private var showDismissed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Error banner
             if !viewModel.errors.isEmpty {
-                ErrorBannerView()
+                ErrorBannerView(onNavigateToSettings: onNavigateToSettings)
             }
 
             // Last checked

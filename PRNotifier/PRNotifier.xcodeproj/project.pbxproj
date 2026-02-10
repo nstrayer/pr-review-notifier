@@ -23,6 +23,7 @@
 		DA6F3A0FB1DC0F3EAE34C637 /* GitHubService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06E030EF2210D17AF2CA774 /* GitHubService.swift */; };
 		DD3AB4F355A32E7A8777E1DD /* ReviewBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31ADB779D4EC6B946BCD1EB4 /* ReviewBadgeView.swift */; };
 		F803FDC7DC7DAFD6633DCE5B /* PRCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85DC5A9A14E352C2B8449AA3 /* PRCardView.swift */; };
+		F9A1B2C3D4E5F60718293A4B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9A1B2C3D4E5F60718293A4C /* SettingsView.swift */; };
 		FFDDEF87993FD9D18F8B231A /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = 22A640CEEAE6E63CF7E156BC /* KeychainAccess */; };
 /* End PBXBuildFile section */
 
@@ -44,6 +45,7 @@
 		E9A1F8DA6AB9FF180B9731E4 /* ErrorBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorBannerView.swift; sourceTree = "<group>"; };
 		EB5E673AC525931225DB3D3C /* CheckError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckError.swift; sourceTree = "<group>"; };
 		EEE662225366654E737FCF3F /* PRNotifier.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PRNotifier.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F9A1B2C3D4E5F60718293A4C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -86,6 +88,7 @@
 				85DC5A9A14E352C2B8449AA3 /* PRCardView.swift */,
 				A8182714A500FC238FA63938 /* PRListView.swift */,
 				31ADB779D4EC6B946BCD1EB4 /* ReviewBadgeView.swift */,
+				F9A1B2C3D4E5F60718293A4C /* SettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -222,6 +225,7 @@
 				B991AA3BC02DB6EA9D3C7E23 /* PersistenceManager.swift in Sources */,
 				DD3AB4F355A32E7A8777E1DD /* ReviewBadgeView.swift in Sources */,
 				C5D2581BEBE27AE0422943CB /* ReviewInfo.swift in Sources */,
+				F9A1B2C3D4E5F60718293A4B /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
