@@ -53,6 +53,9 @@ final class PRViewModel {
 
     func startPolling() {
         pollingTask?.cancel()
+        // Strong self capture is intentional: PRViewModel is a singleton owned by the
+        // app root (@State in PRNotifierApp) and lives for the entire app lifetime.
+        // Call stopPolling() to break the cycle if ownership model ever changes.
         pollingTask = Task {
             // Check immediately
             await checkNow()
@@ -65,6 +68,11 @@ final class PRViewModel {
                 await checkNow()
             }
         }
+    }
+
+    func stopPolling() {
+        pollingTask?.cancel()
+        pollingTask = nil
     }
 
     func restartPolling() {
