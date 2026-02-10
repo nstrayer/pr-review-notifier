@@ -89,7 +89,11 @@ Everything else (Timer, UNUserNotificationCenter, Codable, URLSession) is built 
 - `fetchReviewsForAuthoredPRs()` -- review state per authored PR
 - Input validation (token format, repo format, username)
 - Typed error handling (auth, network, rate limit, repo access)
-- Rate limit strategy: read `X-RateLimit-Remaining` and `X-RateLimit-Reset` headers; when remaining is 0 or a 403/429 is received, skip the current check and surface an error in the menu bar. Resume normal polling on the next interval after the reset time has passed. No automatic retry/backoff within a single check cycle -- the regular polling interval serves as the retry mechanism.
+- Rate limit strategy:
+  - Read `X-RateLimit-Remaining` and `X-RateLimit-Reset` headers on each response
+  - When remaining is 0 or a 403/429 is received, skip the current check and surface an error in the menu bar
+  - Resume normal polling on the next interval after the reset time has passed
+  - No automatic retry/backoff within a single check cycle -- the regular polling interval serves as the retry mechanism
 - **Validates**: Real PR data from GitHub API
 
 ### Phase 4: Polling + State Management
