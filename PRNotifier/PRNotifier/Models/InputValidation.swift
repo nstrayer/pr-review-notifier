@@ -8,16 +8,14 @@ enum InputValidation {
         let trimmed = token.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty, trimmed == token else { return false }
         guard token.count >= 40, token.count <= 300 else { return false }
-        guard token.hasPrefix("ghp_") || token.hasPrefix("gho_") || token.hasPrefix("ghs_") else {
-            return false
-        }
 
         // Only alphanumeric + underscore allowed
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
         guard token.unicodeScalars.allSatisfy({ allowed.contains($0) }) else { return false }
 
-        // Final regex: gh[ops]_ followed by 36-255 alphanumeric chars
-        let pattern = "^gh[ops]_[A-Za-z0-9]{36,255}$"
+        // Classic tokens: ghp_, gho_, ghs_ followed by 36-255 alphanumeric chars
+        // Fine-grained tokens: github_pat_ followed by alphanumeric/underscore chars
+        let pattern = "^(gh[ops]_[A-Za-z0-9]{36,255}|github_pat_[A-Za-z0-9_]{20,255})$"
         return token.range(of: pattern, options: .regularExpression) != nil
     }
 

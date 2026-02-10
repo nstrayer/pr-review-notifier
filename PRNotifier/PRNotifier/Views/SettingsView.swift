@@ -28,7 +28,7 @@ struct SettingsView: View {
 
             // GitHub Token
             Section {
-                SecureField("ghp_...", text: $token)
+                SecureField("ghp_... or github_pat_...", text: $token)
                     .textFieldStyle(.roundedBorder)
                     .onChange(of: token) { errors.removeValue(forKey: "token") }
                 if let error = errors["token"] {
@@ -209,7 +209,7 @@ struct SettingsView: View {
         if trimmedToken.isEmpty {
             errors["token"] = "GitHub token is required."
         } else if !InputValidation.validateGitHubToken(trimmedToken) {
-            errors["token"] = "Invalid token. Must start with ghp_, gho_, or ghs_ and be 40+ characters."
+            errors["token"] = "Invalid token. Must start with ghp_, gho_, ghs_, or github_pat_ and be 40+ characters."
         }
 
         // Validate username
