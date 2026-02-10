@@ -113,9 +113,7 @@ struct GitHubService {
                     )
                     validPRsByID[ghPR.id] = pr
 
-                    if !dismissedIDs.contains(ghPR.id) {
-                        pendingPRs.append(pr)
-                    }
+                    pendingPRs.append(pr)
                 }
 
                 if isAuthor {
@@ -174,9 +172,20 @@ struct GitHubService {
     private func listOpenPRs(
         token: String, owner: String, repo: String
     ) async throws -> [GitHubPullRequest] {
-        let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/pulls?state=open&per_page=100")!
-        let data = try await request(url: url, token: token)
-        return try snakeCaseDecoder.decode([GitHubPullRequest].self, from: data)
+        var allPRs: [GitHubPullRequest] = []
+        var page = 1
+
+        while true {
+            let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/pulls?state=open&per_page=100&page=\(page)")!
+            let data = try await request(url: url, token: token)
+            let prs = try Self.snakeCaseDecoder.decode([GitHubPullRequest].self, from: data)
+            allPRs.append(contentsOf: prs)
+
+            if prs.count < 100 { break }
+            page += 1
+        }
+
+        return allPRs
     }
 
     private func listRequestedReviewers(
@@ -184,7 +193,7 @@ struct GitHubService {
     ) async throws -> ReviewersResponse {
         let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/pulls/\(pullNumber)/requested_reviewers")!
         let data = try await request(url: url, token: token)
-        return try snakeCaseDecoder.decode(ReviewersResponse.self, from: data)
+        return try Self.snakeCaseDecoder.decode(ReviewersResponse.self, from: data)
     }
 
     private func listReviews(
@@ -192,7 +201,7 @@ struct GitHubService {
     ) async throws -> [GitHubReview] {
         let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/pulls/\(pullNumber)/reviews")!
         let data = try await request(url: url, token: token)
-        return try snakeCaseDecoder.decode([GitHubReview].self, from: data)
+        return try Self.snakeCaseDecoder.decode([GitHubReview].self, from: data)
     }
 
     // MARK: - HTTP
@@ -230,11 +239,11 @@ struct GitHubService {
         return data
     }
 
-    private var snakeCaseDecoder: JSONDecoder {
+    private static let snakeCaseDecoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return decoder
-    }
+    }()
 
     // MARK: - Error types
 
@@ -333,8 +342,8 @@ struct GitHubService {
     ) -> [ReviewInfo] {
         var reviewerMap: [String: ReviewInfo] = [:]
 
-        // Process reviews in chronological order (API returns newest first)
-        for review in reviews.reversed() {
+        // Process reviews -- latest review wins (API returns chronological order)
+        for review in reviews {
             guard let user = review.user else { continue }
             // Skip COMMENTED state per Electron logic
             guard review.state != "COMMENTED" else { continue }
