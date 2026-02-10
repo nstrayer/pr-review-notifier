@@ -5,63 +5,41 @@ Scope assumption: fresh app install (no in-place user data migration required)
 
 ## Summary
 
-The migration plan is directionally solid and technically feasible. The main gaps are around persistence completeness and operational details (polling behavior, parity details), not core architecture.
+The migration plan is directionally solid and technically feasible. All previously identified gaps around persistence completeness, polling behavior, IPC channel counts, and directory references have been resolved in the current version of the plan. A rate limiting strategy has been added to Phase 3.
 
 ## Findings
 
-### 1) Medium: Persistence scope is incomplete for current behavior parity
+### 1) ~~Medium~~ Resolved: Persistence scope is complete
 
-Phase 2 calls out PR cache + dismissed IDs, but current behavior also depends on additional persisted keys:
-- `notifiedPRs` (duplicate notification suppression)
-- `lastQueryTime`
-- `lastCheckHadErrors`
-- `lastCheckErrors` (tray/menu error state details)
-- `settingsPrompted` (first-run setup prompting behavior)
+Phase 2 (line 82) explicitly covers PR cache, dismissed IDs, notified PR IDs, last query time, and error state. The Store Schema table (lines 196-214) lists all persisted keys including `settingsPrompted` (line 214), `notifiedPRs`, `lastQueryTime`, `lastCheckHadErrors`, and `lastCheckErrors`.
 
-The migration table includes most but not all; `settingsPrompted` is currently missing.
+This finding was based on an earlier draft and has been fully addressed in the current plan.
 
-References:
-- `MIGRATION_PLAN.md:82`
-- `MIGRATION_PLAN.md:195`
-- `src/main/main.ts:575`
-- `src/main/main.ts:598`
-- `src/utils/github.ts:391`
+Recommendation (optional):
+- Consider adding a per-key persistence matrix (keep/reset/recompute) for additional implementation clarity, but this is not a gap.
 
-Recommendation:
-- Add an explicit per-key persistence matrix: keep/reset/recompute with rationale.
+### 2) ~~Medium~~ Resolved: Polling implementation is specified
 
-### 2) Medium: Polling implementation detail is underspecified and may regress behavior
+Phase 4 (lines 97-101) already specifies:
+- Single-flight polling via an async `Task` loop that awaits each check before sleeping
+- Cancel and restart the polling task when the check interval changes
+- Manual "Check Now" skips if a check is already in flight
 
-The plan offers `Timer.publish` or async task-loop polling. Current implementation avoids overlap by scheduling the next check only after the current check completes. A naive timer can trigger overlapping API calls and noisy notifications.
+This matches the current Electron behavior and addresses the concern about overlapping API calls.
 
-References:
-- `MIGRATION_PLAN.md:50`
-- `MIGRATION_PLAN.md:97`
-- `src/main/main.ts:520`
+Note: A retry/backoff strategy for rate-limited or failed requests is not yet specified -- see the rate limiting note added to Phase 3 of the plan.
 
-Recommendation:
-- Require single-flight polling (one check at a time), cancellation on interval changes, and a defined retry/backoff strategy.
+### 3) ~~Low~~ Resolved: IPC channel count is consistent
 
-### 3) Low: IPC channel count is inconsistent in the plan
+The summary (line 11) states "13 IPC channels" and the table (lines 180-194) lists exactly 13 channels. These are consistent.
 
-The summary states 10 IPC channels, but the listed table contains more channels than that.
+This finding was based on an earlier draft where the count may have been different.
 
-References:
-- `MIGRATION_PLAN.md:11`
-- `MIGRATION_PLAN.md:177`
+### 4) ~~Low~~ Resolved: Preflight step uses neutral phrasing
 
-Recommendation:
-- Correct the count to match the documented list so parity tracking is unambiguous.
+The plan (line 160) already uses the recommended neutral phrasing: "Check for any existing Swift project artifacts in the repo before scaffolding to avoid conflicts or duplication." There is no reference to an `App/` directory.
 
-### 4) Low: “Existing Swift project in App/” note is currently inaccurate for this repo
-
-The plan mentions an `App/` directory that does not currently exist.
-
-Reference:
-- `MIGRATION_PLAN.md:159`
-
-Recommendation:
-- Replace with a neutral preflight step (“check for existing native project artifacts before scaffolding”).
+This finding was based on an earlier draft and has been addressed.
 
 ## Notes on Fresh Install Scope
 
@@ -69,5 +47,5 @@ Because this migration targets fresh installs, a one-time user-data migration fr
 
 ## Verdict
 
-Pass with revisions.  
-Address the medium findings before implementation begins to reduce parity and reliability risk.
+Pass.
+All previously identified findings have been addressed in the current plan. The plan is ready for implementation.
