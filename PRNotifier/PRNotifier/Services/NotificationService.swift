@@ -2,6 +2,7 @@ import Foundation
 import UserNotifications
 import AppKit
 
+@MainActor
 final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationService()
 
@@ -13,9 +14,12 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     // MARK: - Permission
 
     func requestPermission() async {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .notDetermined else { return }
+
         do {
-            let granted = try await UNUserNotificationCenter.current()
-                .requestAuthorization(options: [.alert, .sound, .badge])
+            let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
             print("Notification permission granted: \(granted)")
         } catch {
             print("Notification permission error: \(error.localizedDescription)")
@@ -24,7 +28,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
 
     // MARK: - Send Notifications
 
-    func sendNewPRNotification(pr: PR) {
+    func sendNewPRNotification(pr: PR) async {
         let content = UNMutableNotificationContent()
         content.title = "PR Review Requested: \(pr.repo)"
         content.body = pr.title
@@ -37,14 +41,14 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             trigger: nil
         )
 
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error {
-                print("Failed to schedule notification: \(error.localizedDescription)")
-            }
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("Failed to schedule notification: \(error.localizedDescription)")
         }
     }
 
-    func sendSummaryNotification(count: Int) {
+    func sendSummaryNotification(count: Int) async {
         let content = UNMutableNotificationContent()
         content.title = "PR Reviews Pending"
         content.body = "You have \(count) pull request(s) waiting for your review."
@@ -55,16 +59,16 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             trigger: nil
         )
 
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error {
-                print("Failed to schedule summary notification: \(error.localizedDescription)")
-            }
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("Failed to schedule summary notification: \(error.localizedDescription)")
         }
     }
 
     // MARK: - UNUserNotificationCenterDelegate
 
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void

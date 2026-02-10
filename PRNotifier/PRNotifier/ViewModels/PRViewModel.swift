@@ -163,9 +163,11 @@ final class PRViewModel {
 
             if settings.enableNotifications && !newPRs.isEmpty {
                 for pr in newPRs {
-                    NotificationService.shared.sendNewPRNotification(pr: pr)
+                    await NotificationService.shared.sendNewPRNotification(pr: pr)
                 }
-                NotificationService.shared.sendSummaryNotification(count: result.activePRs.count)
+                if newPRs.count > 1 {
+                    await NotificationService.shared.sendSummaryNotification(count: result.activePRs.count)
+                }
             }
 
             // Update notified IDs: add new, remove stale
