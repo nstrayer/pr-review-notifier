@@ -36,6 +36,8 @@ struct SettingsView: View {
                 }
             } header: {
                 Text("GitHub Token")
+            } footer: {
+                Text("A personal access token used to authenticate with the GitHub API. Generate one at github.com > Settings > Developer settings > Personal access tokens.")
             }
 
             // GitHub Username
@@ -48,6 +50,8 @@ struct SettingsView: View {
                 }
             } header: {
                 Text("GitHub Username")
+            } footer: {
+                Text("Your GitHub username. Used to identify pull requests where your review is requested.")
             }
 
             // Repositories
@@ -81,6 +85,8 @@ struct SettingsView: View {
                 }
             } header: {
                 Text("Repositories")
+            } footer: {
+                Text("Repositories to monitor for pull request review requests. Use the format owner/repo.")
             }
 
             // Check Interval
@@ -96,6 +102,8 @@ struct SettingsView: View {
                 }
             } header: {
                 Text("Check Interval")
+            } footer: {
+                Text("How often to check GitHub for new pull request review requests.")
             }
 
             // Notifications
@@ -104,6 +112,8 @@ struct SettingsView: View {
                 Toggle("Enable notifications", isOn: $s.enableNotifications)
             } header: {
                 Text("Notifications")
+            } footer: {
+                Text("Show a macOS notification when new review requests are found.")
             }
 
             // Auto-launch
@@ -114,6 +124,8 @@ struct SettingsView: View {
                     }
             } header: {
                 Text("Auto-launch")
+            } footer: {
+                Text("Automatically start PR Notifier when you log in to your Mac.")
             }
 
             // Developer Options
