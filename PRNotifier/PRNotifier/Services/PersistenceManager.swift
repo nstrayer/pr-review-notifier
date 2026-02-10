@@ -27,9 +27,14 @@ actor PersistenceManager {
 
         fileURL = appDir.appendingPathComponent("cache.json")
 
-        if let data = try? Data(contentsOf: fileURL),
-           let decoded = try? JSONDecoder().decode(CacheData.self, from: data) {
-            cache = decoded
+        if let data = try? Data(contentsOf: fileURL) {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            if let decoded = try? decoder.decode(CacheData.self, from: data) {
+                cache = decoded
+            } else {
+                cache = CacheData()
+            }
         } else {
             cache = CacheData()
         }
