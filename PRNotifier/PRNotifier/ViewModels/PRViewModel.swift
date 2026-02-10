@@ -53,18 +53,16 @@ final class PRViewModel {
 
     func startPolling() {
         pollingTask?.cancel()
-        pollingTask = Task { [weak self] in
-            guard let self else { return }
-
+        pollingTask = Task {
             // Check immediately
-            await self.checkNow()
+            await checkNow()
 
             // Then loop on interval
             while !Task.isCancelled {
-                let interval = self.settings.checkInterval
+                let interval = settings.checkInterval
                 try? await Task.sleep(for: .seconds(interval * 60))
                 if Task.isCancelled { break }
-                await self.checkNow()
+                await checkNow()
             }
         }
     }
@@ -87,7 +85,7 @@ final class PRViewModel {
 
         // Sample PR mode
         if settings.devShowSamplePRs {
-            loadSamplePRs()
+            await loadSamplePRs()
             lastCheckTime = Date()
             await persistence.setLastQueryTime(lastCheckTime)
             errors = []
@@ -187,7 +185,7 @@ final class PRViewModel {
 
     // MARK: - Sample PRs (matches github.ts sample data)
 
-    private func loadSamplePRs() {
+    private func loadSamplePRs() async {
         let sampleActive: [PR] = [
             PR(id: 9876543210, number: 123, title: "[SAMPLE] Add new dashboard feature",
                htmlURL: "https://github.com/sample/repo/pull/123", repo: "sample/repo"),
@@ -223,24 +221,20 @@ final class PRViewModel {
 
         let allValid = sampleActive + sampleAlwaysDismissed
 
-        Task {
-            let storedDismissedIDs = await persistence.getDismissedPRIDs()
-            let validIDs = Set(allValid.map(\.id))
-            let cleanedDismissedIDs = storedDismissedIDs.intersection(validIDs)
+        let storedDismissedIDs = await persistence.getDismissedPRIDs()
+        let validIDs = Set(allValid.map(\.id))
+        let cleanedDismissedIDs = storedDismissedIDs.intersection(validIDs)
 
-            if cleanedDismissedIDs != storedDismissedIDs {
-                await persistence.setDismissedPRIDs(cleanedDismissedIDs)
-            }
-
-            await MainActor.run {
-                self.activePRs = sampleActive.filter { !cleanedDismissedIDs.contains($0.id) }
-                let dismissedFromActive = sampleActive.filter { cleanedDismissedIDs.contains($0.id) }
-                self.dismissedPRs = sampleAlwaysDismissed + dismissedFromActive
-                self.authoredPRs = sampleAuthored
-            }
-
-            await persistence.setPendingPRs(self.activePRs)
-            await persistence.setAuthoredPRs(sampleAuthored)
+        if cleanedDismissedIDs != storedDismissedIDs {
+            await persistence.setDismissedPRIDs(cleanedDismissedIDs)
         }
+
+        self.activePRs = sampleActive.filter { !cleanedDismissedIDs.contains($0.id) }
+        let dismissedFromActive = sampleActive.filter { cleanedDismissedIDs.contains($0.id) }
+        self.dismissedPRs = sampleAlwaysDismissed + dismissedFromActive
+        self.authoredPRs = sampleAuthored
+
+        await persistence.setPendingPRs(self.activePRs)
+        await persistence.setAuthoredPRs(sampleAuthored)
     }
 }
