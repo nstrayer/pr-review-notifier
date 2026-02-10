@@ -10,11 +10,8 @@ struct PRNotifierApp: App {
                 .environment(viewModel)
                 .environment(viewModel.settings)
         } label: {
-            Label {
-                Text(viewModel.menuBarTitle)
-            } icon: {
-                Image("MenuBarIcon")
-            }
+            Image("MenuBarIcon")
+            Text(viewModel.menuBarTitle)
         }
         .menuBarExtraStyle(.window)
     }
