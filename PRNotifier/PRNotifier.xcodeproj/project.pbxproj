@@ -20,6 +20,7 @@
 		B991AA3BC02DB6EA9D3C7E23 /* PersistenceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F34406174F3CFE91C40B10D /* PersistenceManager.swift */; };
 		C5D2581BEBE27AE0422943CB /* ReviewInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98BF1076CB89563FAC056E1A /* ReviewInfo.swift */; };
 		CA76934D51D5C156813E2601 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65630BC2A565A84BDBA082C5 /* KeychainService.swift */; };
+		D1A2B3C4E5F607182930AB12 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F607182930AB13 /* NotificationService.swift */; };
 		DA6F3A0FB1DC0F3EAE34C637 /* GitHubService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06E030EF2210D17AF2CA774 /* GitHubService.swift */; };
 		DD3AB4F355A32E7A8777E1DD /* ReviewBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31ADB779D4EC6B946BCD1EB4 /* ReviewBadgeView.swift */; };
 		F803FDC7DC7DAFD6633DCE5B /* PRCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85DC5A9A14E352C2B8449AA3 /* PRCardView.swift */; };
@@ -35,6 +36,7 @@
 		751378E9A5F234D6A5804CD6 /* PR.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PR.swift; sourceTree = "<group>"; };
 		85DC5A9A14E352C2B8449AA3 /* PRCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRCardView.swift; sourceTree = "<group>"; };
 		8F34406174F3CFE91C40B10D /* PersistenceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceManager.swift; sourceTree = "<group>"; };
+		D1A2B3C4E5F607182930AB13 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		928BD185D1F6953A052AE339 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		98BF1076CB89563FAC056E1A /* ReviewInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewInfo.swift; sourceTree = "<group>"; };
 		A7AA7D7828EC7B0D0F7EE7A1 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
@@ -106,6 +108,7 @@
 			children = (
 				B06E030EF2210D17AF2CA774 /* GitHubService.swift */,
 				65630BC2A565A84BDBA082C5 /* KeychainService.swift */,
+				D1A2B3C4E5F607182930AB13 /* NotificationService.swift */,
 				8F34406174F3CFE91C40B10D /* PersistenceManager.swift */,
 			);
 			path = Services;
@@ -217,6 +220,7 @@
 				DA6F3A0FB1DC0F3EAE34C637 /* GitHubService.swift in Sources */,
 				142F2CB750EE423CD98861A8 /* InputValidation.swift in Sources */,
 				CA76934D51D5C156813E2601 /* KeychainService.swift in Sources */,
+				D1A2B3C4E5F607182930AB12 /* NotificationService.swift in Sources */,
 				18C86A1C9C1536A2EBD5098F /* PR.swift in Sources */,
 				F803FDC7DC7DAFD6633DCE5B /* PRCardView.swift in Sources */,
 				76D5E118F07F36F70FFC3DE3 /* PRListView.swift in Sources */,

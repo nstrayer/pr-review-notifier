@@ -48,6 +48,7 @@ final class PRViewModel {
         hasErrors = cache.lastCheckHadErrors
         errors = cache.lastCheckErrors
 
+        await NotificationService.shared.requestPermission()
         startPolling()
     }
 
@@ -155,6 +156,22 @@ final class PRViewModel {
             await persistence.setAuthoredPRs(result.authoredPRs)
             await persistence.setLastQueryTime(lastCheckTime)
             await persistence.setLastCheckErrors(result.errors)
+
+            // Send notifications for new PRs
+            let notifiedIDs = await persistence.getNotifiedPRIDs()
+            let newPRs = result.activePRs.filter { !notifiedIDs.contains($0.id) }
+
+            if settings.enableNotifications && !newPRs.isEmpty {
+                for pr in newPRs {
+                    NotificationService.shared.sendNewPRNotification(pr: pr)
+                }
+                NotificationService.shared.sendSummaryNotification(count: result.activePRs.count)
+            }
+
+            // Update notified IDs: add new, remove stale
+            let updatedNotifiedIDs = notifiedIDs.union(Set(newPRs.map(\.id)))
+                .intersection(result.validPRIDs)
+            await persistence.setNotifiedPRIDs(updatedNotifiedIDs)
         } catch {
             let checkError = CheckError(
                 type: .unknown,
