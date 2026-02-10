@@ -1,0 +1,31 @@
+name: PRNotifier
+options:
+  bundleIdPrefix: com.nickstrayer
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "15.0"
+  generateEmptyDirectories: true
+
+packages:
+  KeychainAccess:
+    url: https://github.com/kishikawakatsumi/KeychainAccess.git
+    from: "4.2.2"
+
+targets:
+  PRNotifier:
+    type: application
+    platform: macOS
+    sources:
+      - PRNotifier
+    settings:
+      base:
+        INFOPLIST_KEY_LSUIElement: true
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.nickstrayer.prnotifier
+        MARKETING_VERSION: "2.0.0"
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: "5.9"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        INFOPLIST_KEY_CFBundleDisplayName: "PR Notifier"
+    dependencies:
+      - package: KeychainAccess
