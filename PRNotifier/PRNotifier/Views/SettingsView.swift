@@ -28,7 +28,7 @@ struct SettingsView: View {
 
             // GitHub Token
             Section {
-                SecureField("ghp_... or github_pat_...", text: $token)
+                SecureField("Token", text: $token)
                     .textFieldStyle(.roundedBorder)
                     .onChange(of: token) { errors.removeValue(forKey: "token") }
                 if let error = errors["token"] {
@@ -42,7 +42,7 @@ struct SettingsView: View {
 
             // GitHub Username
             Section {
-                TextField("your-username", text: $username)
+                TextField("Username", text: $username)
                     .textFieldStyle(.roundedBorder)
                     .onChange(of: username) { errors.removeValue(forKey: "username") }
                 if let error = errors["username"] {
@@ -86,7 +86,7 @@ struct SettingsView: View {
             } header: {
                 Text("Repositories")
             } footer: {
-                Text("Repositories to monitor for pull request review requests. Use the format owner/repo.")
+                Text("Repositories to monitor for pull request review requests.")
             }
 
             // Check Interval
@@ -103,13 +103,13 @@ struct SettingsView: View {
             } header: {
                 Text("Check Interval")
             } footer: {
-                Text("How often to check GitHub for new pull request review requests.")
+                Text("How often to check for new review requests.")
             }
 
             // Notifications
             Section {
                 @Bindable var s = settings
-                Toggle("Enable notifications", isOn: $s.enableNotifications)
+                Toggle("Desktop notifications", isOn: $s.enableNotifications)
             } header: {
                 Text("Notifications")
             } footer: {
