@@ -34,8 +34,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func observeMenuBarTitle() {
+        guard let button = statusItem.button else { return }
         withObservationTracking {
-            statusItem.button?.title = viewModel.menuBarTitle
+            button.title = viewModel.menuBarTitle
         } onChange: {
             Task { @MainActor [weak self] in
                 self?.observeMenuBarTitle()
