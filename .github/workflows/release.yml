@@ -43,8 +43,11 @@ jobs:
             -scheme PRNotifier \
             -configuration Release \
             -derivedDataPath build/DerivedData \
+            -arch arm64 -arch x86_64 \
+            ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY="Developer ID Application" \
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            ENABLE_HARDENED_RUNTIME=YES \
             clean build
 
       - name: Notarize app
@@ -68,6 +71,17 @@ jobs:
           if ! grep -iq "status: Accepted" notarize-output.txt; then
             echo "Notarization failed"
             cat notarize-output.txt
+
+            # Fetch detailed notarization log from Apple
+            SUBMISSION_ID=$(grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' notarize-output.txt | head -1)
+            if [ -n "$SUBMISSION_ID" ]; then
+              echo "--- Notarization log for $SUBMISSION_ID ---"
+              xcrun notarytool log "$SUBMISSION_ID" \
+                --apple-id "$APPLE_ID" \
+                --team-id "$APPLE_TEAM_ID" \
+                --password "$APPLE_APP_SPECIFIC_PASSWORD" 2>&1 || true
+            fi
+
             exit 1
           fi
 

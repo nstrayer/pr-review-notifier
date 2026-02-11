@@ -27,5 +27,7 @@ targets:
         SWIFT_VERSION: "5.9"
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         INFOPLIST_KEY_CFBundleDisplayName: "PR Notifier"
+        ENABLE_HARDENED_RUNTIME: true
+        CODE_SIGN_ENTITLEMENTS: PRNotifier/PRNotifier.entitlements
     dependencies:
       - package: KeychainAccess
