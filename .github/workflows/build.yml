@@ -15,7 +15,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Select Xcode 16
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)/Contents/Developer"
+        run: |
+          XCODE_PATH="$(ls -d /Applications/Xcode_16.[0-9]*.app 2>/dev/null | grep -vi beta | grep -vi candidate | sort -V | tail -1)"
+          if [ -z "$XCODE_PATH" ]; then
+            echo "No stable Xcode 16.x found on runner"
+            ls /Applications/Xcode*.app
+            exit 1
+          fi
+          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
 
       - name: Resolve SPM dependencies
         run: xcodebuild -resolvePackageDependencies -project PRNotifier/PRNotifier.xcodeproj -scheme PRNotifier
