@@ -34,7 +34,7 @@ final class PRViewModel {
         if hasErrors { return "!" }
         if !settings.isConfigured && !settings.devShowSamplePRs { return "Setup" }
         if activePRs.isEmpty { return "No reviews!" }
-        return "\(activePRs.count) reviews"
+        return "\(activePRs.count) \(activePRs.count == 1 ? "review" : "reviews")"
     }
 
     // MARK: - Lifecycle

@@ -51,19 +51,29 @@ jobs:
           # Create zip for notarization submission
           ditto -c -k --keepParent "$APP_PATH" build/PRNotifier-notarize.zip
 
-          # Submit for notarization
+          # Submit for notarization and verify acceptance
           xcrun notarytool submit build/PRNotifier-notarize.zip \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --wait
+            --wait 2>&1 | tee notarize-output.txt
+
+          if ! grep -q "status: Accepted" notarize-output.txt; then
+            echo "Notarization failed"
+            cat notarize-output.txt
+            exit 1
+          fi
 
           # Staple the notarization ticket
           xcrun stapler staple "$APP_PATH"
 
       - name: Create DMG
         run: |
-          VERSION=$(grep 'MARKETING_VERSION' PRNotifier/project.yml | head -1 | sed 's/.*: *"\(.*\)"/\1/')
+          VERSION=$(grep 'MARKETING_VERSION' PRNotifier/project.yml | head -1 | sed 's/.*: *["'"'"']*\([0-9][0-9.]*\)["'"'"']*/\1/')
+          if [ -z "$VERSION" ]; then
+            echo "Failed to extract MARKETING_VERSION from project.yml"
+            exit 1
+          fi
           APP_PATH="build/DerivedData/Build/Products/Release/PRNotifier.app"
           DMG_PATH="build/PRNotifier-${VERSION}.dmg"
 
