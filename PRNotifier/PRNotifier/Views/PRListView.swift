@@ -23,7 +23,7 @@ struct PRListView: View {
                         .foregroundStyle(.tertiary)
                         .italic()
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 16)
                 .padding(.top, 8)
             }
 
@@ -40,7 +40,7 @@ struct PRListView: View {
                         .font(.subheadline)
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                        .padding(.vertical, 20)
                 }
 
                 // Dismissed PRs
@@ -52,7 +52,7 @@ struct PRListView: View {
                 authoredSections
             }
         }
-        .padding(.bottom, 8)
+        .padding(.bottom, 12)
     }
 
     // MARK: - Empty state
@@ -68,7 +68,7 @@ struct PRListView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 32)
+        .padding(.vertical, 40)
         .padding(.horizontal, 16)
     }
 
@@ -83,7 +83,7 @@ struct PRListView: View {
         showReviewStatus: Bool = false
     ) -> some View {
         if !prs.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text(title)
                         .font(.subheadline)
@@ -93,8 +93,8 @@ struct PRListView: View {
                         .font(.subheadline)
                         .foregroundStyle(.tertiary)
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
 
                 ForEach(prs) { pr in
                     PRCardView(
@@ -112,7 +112,7 @@ struct PRListView: View {
     // MARK: - Dismissed section (collapsible)
 
     private var dismissedSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showDismissed.toggle()
@@ -133,8 +133,8 @@ struct PRListView: View {
                 }
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
 
             if showDismissed {
                 ForEach(viewModel.dismissedPRs) { pr in

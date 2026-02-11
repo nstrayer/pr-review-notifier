@@ -8,7 +8,7 @@ struct PRCardView: View {
     var onRestore: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             // Title
             Button {
                 openPR()
@@ -35,7 +35,7 @@ struct PRCardView: View {
                     .font(.caption)
                     .fontWeight(.medium)
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
+                    .padding(.vertical, 3)
                     .background(isDismissed ? Color.gray.opacity(0.1) : Color.accentColor.opacity(0.1))
                     .foregroundStyle(isDismissed ? Color.secondary : Color.accentColor)
                     .clipShape(Capsule())
@@ -100,11 +100,11 @@ struct PRCardView: View {
                 }
             }
         }
-        .padding(11)
+        .padding(12)
         .background(isDismissed ? Color.gray.opacity(0.04) : Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .shadow(color: .black.opacity(0.06), radius: 2, y: 1)
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 12)
     }
 
     private func openPR() {
