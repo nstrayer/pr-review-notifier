@@ -28,6 +28,21 @@ struct ContentView: View {
             case .settings:
                 SettingsView()
             }
+
+            // Footer
+            Divider()
+            HStack {
+                Button("Quit PR Notifier") {
+                    NSApplication.shared.terminate(nil)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .font(.caption)
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
         .frame(width: 400, height: 500)
         .task {
