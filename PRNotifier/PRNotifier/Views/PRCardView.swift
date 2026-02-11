@@ -8,13 +8,13 @@ struct PRCardView: View {
     var onRestore: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             // Title
             Button {
                 openPR()
             } label: {
                 Text(pr.title)
-                    .font(.subheadline)
+                    .font(.body)
                     .fontWeight(.semibold)
                     .foregroundStyle(isDismissed ? .secondary : .primary)
                     .multilineTextAlignment(.leading)
@@ -32,10 +32,10 @@ struct PRCardView: View {
             // Repo badge + PR number
             HStack(spacing: 6) {
                 Text(pr.repo)
-                    .font(.caption2)
+                    .font(.caption)
                     .fontWeight(.medium)
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
+                    .padding(.vertical, 2)
                     .background(isDismissed ? Color.gray.opacity(0.1) : Color.accentColor.opacity(0.1))
                     .foregroundStyle(isDismissed ? Color.secondary : Color.accentColor)
                     .clipShape(Capsule())
@@ -62,8 +62,6 @@ struct PRCardView: View {
             }
 
             // Action buttons
-            Divider()
-
             HStack(spacing: 8) {
                 Button {
                     openPR()
@@ -102,11 +100,11 @@ struct PRCardView: View {
                 }
             }
         }
-        .padding(12)
+        .padding(10)
         .background(isDismissed ? Color.gray.opacity(0.04) : Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
         .shadow(color: .black.opacity(0.06), radius: 2, y: 1)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 8)
     }
 
     private func openPR() {

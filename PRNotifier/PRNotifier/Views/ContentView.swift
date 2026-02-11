@@ -65,8 +65,8 @@ struct ContentView: View {
                 .controlSize(.small)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(.bar)
     }
 
@@ -78,7 +78,7 @@ struct ContentView: View {
                 Button {
                     selectedTab = tab
                 } label: {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 4) {
                         HStack(spacing: 4) {
                             Text(tab.rawValue)
                                 .font(.subheadline)
@@ -100,7 +100,7 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 12)
         .background(.bar)
     }
 }
