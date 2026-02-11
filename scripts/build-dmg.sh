@@ -25,6 +25,7 @@ xcodebuild \
     -scheme "$APP_NAME" \
     -configuration Release \
     -derivedDataPath "$BUILD_DIR/DerivedData" \
+    ARCHS="arm64 x86_64" \
     clean build \
     | tail -5
 
@@ -52,6 +53,7 @@ rm -f "$DMG_PATH"
 echo "Creating DMG..."
 
 hdiutil create \
+    -quiet \
     -srcfolder "$STAGING_DIR" \
     -volname "$APP_NAME" \
     -fs HFS+ \
