@@ -83,7 +83,7 @@ struct PRListView: View {
         showReviewStatus: Bool = false
     ) -> some View {
         if !prs.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text(title)
                         .font(.subheadline)
@@ -112,7 +112,7 @@ struct PRListView: View {
     // MARK: - Dismissed section (collapsible)
 
     private var dismissedSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showDismissed.toggle()

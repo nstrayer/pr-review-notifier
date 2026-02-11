@@ -8,7 +8,7 @@ struct PRCardView: View {
     var onRestore: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             // Title
             Button {
                 openPR()
@@ -100,7 +100,7 @@ struct PRCardView: View {
                 }
             }
         }
-        .padding(10)
+        .padding(11)
         .background(isDismissed ? Color.gray.opacity(0.04) : Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .shadow(color: .black.opacity(0.06), radius: 2, y: 1)
