@@ -33,8 +33,8 @@ final class PRViewModel {
     var menuBarTitle: String {
         if hasErrors { return "!" }
         if !settings.isConfigured && !settings.devShowSamplePRs { return "Setup" }
-        if activePRs.isEmpty { return "" }
-        return "\(activePRs.count)"
+        if activePRs.isEmpty { return "No reviews!" }
+        return "\(activePRs.count) reviews"
     }
 
     // MARK: - Lifecycle
