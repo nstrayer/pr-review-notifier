@@ -215,35 +215,40 @@ final class PRViewModel {
     private func loadSamplePRs() async {
         let sampleActive: [PR] = [
             PR(id: 9876543210, number: 123, title: "[SAMPLE] Add new dashboard feature",
-               htmlURL: "https://github.com/sample/repo/pull/123", repo: "sample/repo"),
+               htmlURL: "https://github.com/sample/repo/pull/123", repo: "sample/repo",
+               authorLogin: "alice-dev"),
             PR(id: 9876543211, number: 456, title: "[SAMPLE] Fix login bug on Safari",
-               htmlURL: "https://github.com/sample/repo/pull/456", repo: "another/project"),
+               htmlURL: "https://github.com/sample/repo/pull/456", repo: "another/project",
+               authorLogin: "bob-eng"),
             PR(id: 9876543212, number: 789, title: "[SAMPLE] Update README with new installation instructions",
-               htmlURL: "https://github.com/sample/repo/pull/789", repo: "docs/documentation"),
+               htmlURL: "https://github.com/sample/repo/pull/789", repo: "docs/documentation",
+               authorLogin: "charlie-docs"),
         ]
 
         let sampleAlwaysDismissed: [PR] = [
             PR(id: 9876543213, number: 101, title: "[SAMPLE-DISMISSED] Improve test coverage",
-               htmlURL: "https://github.com/sample/repo/pull/101", repo: "sample/repo"),
+               htmlURL: "https://github.com/sample/repo/pull/101", repo: "sample/repo",
+               authorLogin: "alice-dev"),
             PR(id: 9876543214, number: 202, title: "[SAMPLE-DISMISSED] Update API documentation",
-               htmlURL: "https://github.com/sample/repo/pull/202", repo: "docs/api-docs"),
+               htmlURL: "https://github.com/sample/repo/pull/202", repo: "docs/api-docs",
+               authorLogin: "bob-eng"),
         ]
 
         let sampleAuthored: [PR] = [
             PR(id: 9876543220, number: 301, title: "[SAMPLE-AUTHORED] Implement user profile page",
                htmlURL: "https://github.com/sample/repo/pull/301", repo: "sample/repo",
-               reviews: [
+               authorLogin: "you", reviews: [
                    ReviewInfo(reviewerLogin: "reviewer1", reviewerName: "Alice Smith", state: .approved),
                    ReviewInfo(reviewerLogin: "reviewer2", reviewerName: "Bob Johnson", state: .pending),
                ], isAuthored: true),
             PR(id: 9876543221, number: 302, title: "[SAMPLE-AUTHORED] Fix navigation bug",
                htmlURL: "https://github.com/sample/repo/pull/302", repo: "another/project",
-               reviews: [
+               authorLogin: "you", reviews: [
                    ReviewInfo(reviewerLogin: "reviewer3", reviewerName: "Charlie Davis", state: .changesRequested),
                ], isAuthored: true),
             PR(id: 9876543222, number: 303, title: "[SAMPLE-AUTHORED] Add API documentation",
                htmlURL: "https://github.com/sample/repo/pull/303", repo: "docs/documentation",
-               reviews: [], isAuthored: true),
+               authorLogin: "you", reviews: [], isAuthored: true),
         ]
 
         let allValid = sampleActive + sampleAlwaysDismissed

@@ -109,7 +109,8 @@ struct GitHubService {
                         number: ghPR.number,
                         title: ghPR.title,
                         htmlURL: ghPR.htmlUrl,
-                        repo: repoFullName
+                        repo: repoFullName,
+                        authorLogin: ghPR.user?.login
                     )
                     validPRsByID[ghPR.id] = pr
 
@@ -137,6 +138,7 @@ struct GitHubService {
                         title: ghPR.title,
                         htmlURL: ghPR.htmlUrl,
                         repo: repoFullName,
+                        authorLogin: ghPR.user?.login,
                         reviews: reviewInfos,
                         isAuthored: true
                     )

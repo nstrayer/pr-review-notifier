@@ -43,6 +43,12 @@ struct PRCardView: View {
                 Text("#\(pr.number)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                if !showReviewStatus, let author = pr.authorLogin {
+                    Text("by \(author)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             // Review badges
