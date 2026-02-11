@@ -13,41 +13,44 @@
 		511772A3843BA722FAA6D812 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 213AF4149CFA6E62F6C9CD46 /* ContentView.swift */; };
 		6A9C03E0B1292CE9E2915D49 /* PRViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E568272B6BBEA584821B79D1 /* PRViewModel.swift */; };
 		76D5E118F07F36F70FFC3DE3 /* PRListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8182714A500FC238FA63938 /* PRListView.swift */; };
+		7810D93EC8BB09C1836EDA71 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20BD5AAF2E10C76397D7BC42 /* SettingsView.swift */; };
+		82DC126AEDBD426023A5F333 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88AC7D4D95276538EA9F8FC /* NotificationService.swift */; };
 		979B4F7E32B9C84EE21ADA11 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7AA7D7828EC7B0D0F7EE7A1 /* AppSettings.swift */; };
 		A12703C50147B69A3D54910E /* PRNotifierApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB12FF989CC5332C40196DBE /* PRNotifierApp.swift */; };
 		A19F5989D89640F679C6FA39 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 928BD185D1F6953A052AE339 /* Assets.xcassets */; };
 		A83BCF808F5D78044C5713A7 /* CheckError.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5E673AC525931225DB3D3C /* CheckError.swift */; };
+		A9888D351E0AEEABC9D9A146 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CD81E553083EFC098AC70F6 /* AppDelegate.swift */; };
 		B991AA3BC02DB6EA9D3C7E23 /* PersistenceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F34406174F3CFE91C40B10D /* PersistenceManager.swift */; };
 		C5D2581BEBE27AE0422943CB /* ReviewInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98BF1076CB89563FAC056E1A /* ReviewInfo.swift */; };
 		CA76934D51D5C156813E2601 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65630BC2A565A84BDBA082C5 /* KeychainService.swift */; };
-		D1A2B3C4E5F607182930AB12 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F607182930AB13 /* NotificationService.swift */; };
 		DA6F3A0FB1DC0F3EAE34C637 /* GitHubService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06E030EF2210D17AF2CA774 /* GitHubService.swift */; };
 		DD3AB4F355A32E7A8777E1DD /* ReviewBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31ADB779D4EC6B946BCD1EB4 /* ReviewBadgeView.swift */; };
 		F803FDC7DC7DAFD6633DCE5B /* PRCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85DC5A9A14E352C2B8449AA3 /* PRCardView.swift */; };
-		F9A1B2C3D4E5F60718293A4B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9A1B2C3D4E5F60718293A4C /* SettingsView.swift */; };
 		FFDDEF87993FD9D18F8B231A /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = 22A640CEEAE6E63CF7E156BC /* KeychainAccess */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		20BD5AAF2E10C76397D7BC42 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		213AF4149CFA6E62F6C9CD46 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		31ADB779D4EC6B946BCD1EB4 /* ReviewBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewBadgeView.swift; sourceTree = "<group>"; };
+		3CD81E553083EFC098AC70F6 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		54C7C0006D42531CCF7080A6 /* InputValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputValidation.swift; sourceTree = "<group>"; };
+		5F953AB350C82F17BA9E4667 /* PRNotifier.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PRNotifier.entitlements; sourceTree = "<group>"; };
 		65630BC2A565A84BDBA082C5 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		751378E9A5F234D6A5804CD6 /* PR.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PR.swift; sourceTree = "<group>"; };
 		85DC5A9A14E352C2B8449AA3 /* PRCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRCardView.swift; sourceTree = "<group>"; };
 		8F34406174F3CFE91C40B10D /* PersistenceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceManager.swift; sourceTree = "<group>"; };
-		D1A2B3C4E5F607182930AB13 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		928BD185D1F6953A052AE339 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		98BF1076CB89563FAC056E1A /* ReviewInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewInfo.swift; sourceTree = "<group>"; };
 		A7AA7D7828EC7B0D0F7EE7A1 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		A8182714A500FC238FA63938 /* PRListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRListView.swift; sourceTree = "<group>"; };
 		B06E030EF2210D17AF2CA774 /* GitHubService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubService.swift; sourceTree = "<group>"; };
 		BB12FF989CC5332C40196DBE /* PRNotifierApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRNotifierApp.swift; sourceTree = "<group>"; };
+		C88AC7D4D95276538EA9F8FC /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		E568272B6BBEA584821B79D1 /* PRViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRViewModel.swift; sourceTree = "<group>"; };
 		E9A1F8DA6AB9FF180B9731E4 /* ErrorBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorBannerView.swift; sourceTree = "<group>"; };
 		EB5E673AC525931225DB3D3C /* CheckError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckError.swift; sourceTree = "<group>"; };
 		EEE662225366654E737FCF3F /* PRNotifier.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PRNotifier.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		F9A1B2C3D4E5F60718293A4C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -90,7 +93,7 @@
 				85DC5A9A14E352C2B8449AA3 /* PRCardView.swift */,
 				A8182714A500FC238FA63938 /* PRListView.swift */,
 				31ADB779D4EC6B946BCD1EB4 /* ReviewBadgeView.swift */,
-				F9A1B2C3D4E5F60718293A4C /* SettingsView.swift */,
+				20BD5AAF2E10C76397D7BC42 /* SettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -108,7 +111,7 @@
 			children = (
 				B06E030EF2210D17AF2CA774 /* GitHubService.swift */,
 				65630BC2A565A84BDBA082C5 /* KeychainService.swift */,
-				D1A2B3C4E5F607182930AB13 /* NotificationService.swift */,
+				C88AC7D4D95276538EA9F8FC /* NotificationService.swift */,
 				8F34406174F3CFE91C40B10D /* PersistenceManager.swift */,
 			);
 			path = Services;
@@ -133,6 +136,8 @@
 		F345BB7D93F2A087FFB1D011 /* PRNotifier */ = {
 			isa = PBXGroup;
 			children = (
+				3CD81E553083EFC098AC70F6 /* AppDelegate.swift */,
+				5F953AB350C82F17BA9E4667 /* PRNotifier.entitlements */,
 				BB12FF989CC5332C40196DBE /* PRNotifierApp.swift */,
 				08B033612F7701F97703F0CF /* Models */,
 				961E6F58AE2E301BB0B7C7EF /* Resources */,
@@ -213,6 +218,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A9888D351E0AEEABC9D9A146 /* AppDelegate.swift in Sources */,
 				979B4F7E32B9C84EE21ADA11 /* AppSettings.swift in Sources */,
 				A83BCF808F5D78044C5713A7 /* CheckError.swift in Sources */,
 				511772A3843BA722FAA6D812 /* ContentView.swift in Sources */,
@@ -220,7 +226,7 @@
 				DA6F3A0FB1DC0F3EAE34C637 /* GitHubService.swift in Sources */,
 				142F2CB750EE423CD98861A8 /* InputValidation.swift in Sources */,
 				CA76934D51D5C156813E2601 /* KeychainService.swift in Sources */,
-				D1A2B3C4E5F607182930AB12 /* NotificationService.swift in Sources */,
+				82DC126AEDBD426023A5F333 /* NotificationService.swift in Sources */,
 				18C86A1C9C1536A2EBD5098F /* PR.swift in Sources */,
 				F803FDC7DC7DAFD6633DCE5B /* PRCardView.swift in Sources */,
 				76D5E118F07F36F70FFC3DE3 /* PRListView.swift in Sources */,
@@ -229,7 +235,7 @@
 				B991AA3BC02DB6EA9D3C7E23 /* PersistenceManager.swift in Sources */,
 				DD3AB4F355A32E7A8777E1DD /* ReviewBadgeView.swift in Sources */,
 				C5D2581BEBE27AE0422943CB /* ReviewInfo.swift in Sources */,
-				F9A1B2C3D4E5F60718293A4B /* SettingsView.swift in Sources */,
+				7810D93EC8BB09C1836EDA71 /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
