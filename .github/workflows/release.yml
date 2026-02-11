@@ -1,4 +1,4 @@
-name: Build and Release for Apple Silicon
+name: Build and Release
 
 on:
   push:
@@ -7,95 +7,87 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15
     permissions:
       contents: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build application
-        run: npm run build && npm run optimize
-        env:
-          NODE_ENV: production
-          
-      # Prepare GitHub-specific build configuration
-      - name: Prepare build configuration for GitHub
-        run: |
-          node prepare-build.js
-          ls -la
-          cat electron-builder.json
-          
-      # Debug notarize.js
-      - name: Debug notarize.js
-        run: |
-          cat notarize.js
-          
-      # Debug entitlements file
-      - name: Debug entitlements file
-        run: |
-          ls -la build/
-          cat build/entitlements.github.plist
-          plutil -lint build/entitlements.github.plist
-          chmod 644 build/entitlements.github.plist
-          
-      # Import Apple Developer Certificate for signing
       - name: Install Apple Developer Certificate
-        if: ${{ github.event_name != 'pull_request' }}
         uses: apple-actions/import-codesign-certs@v2
         with:
           p12-file-base64: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
           p12-password: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
           keychain: build
           keychain-password: ${{ secrets.KEYCHAIN_PASSWORD }}
-          
-      # Add debugging for the code signing identity
-      - name: Debug code signing
+
+      - name: Resolve SPM dependencies
+        run: xcodebuild -resolvePackageDependencies -project PRNotifier/PRNotifier.xcodeproj -scheme PRNotifier
+
+      - name: Build Release
         run: |
-          security find-identity -v
-          security find-identity -v -p codesigning
-          
-      # Check that environment variables are set
-      - name: Debug environment variables
-        run: |
-          echo "Testing environment variables (values redacted):"
-          echo "APPLE_ID: ${APPLE_ID:0:2}...${APPLE_ID: -2}"
-          echo "APPLE_TEAM_ID: ${APPLE_TEAM_ID:0:2}...${APPLE_TEAM_ID: -2}"
-          echo "APPLE_APP_SPECIFIC_PASSWORD: ${APPLE_APP_SPECIFIC_PASSWORD:0:2}...${APPLE_APP_SPECIFIC_PASSWORD: -2}"
-          echo "CSC_LINK is set: $([ ! -z "$CSC_LINK" ] && echo 'Yes' || echo 'No')"
-          echo "CSC_KEY_PASSWORD is set: $([ ! -z "$CSC_KEY_PASSWORD" ] && echo 'Yes' || echo 'No')"
+          xcodebuild \
+            -project PRNotifier/PRNotifier.xcodeproj \
+            -scheme PRNotifier \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            clean build
+
+      - name: Notarize app
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          CSC_LINK: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
-          CSC_KEY_PASSWORD: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
-          
-      - name: Build macOS arm64 package
         run: |
-          npm run build && npm run optimize && \
-          DEBUG=electron-builder,electron-notarize* \
-          npx electron-builder --mac --arm64 --config=electron-builder.json
-        env:
-          # Apple notarization details
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CSC_LINK: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
-          CSC_KEY_PASSWORD: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
-          
-      - name: Upload artifacts to release
-        uses: softprops/action-gh-release@v1
+          APP_PATH="build/DerivedData/Build/Products/Release/PRNotifier.app"
+
+          # Create zip for notarization submission
+          ditto -c -k --keepParent "$APP_PATH" build/PRNotifier-notarize.zip
+
+          # Submit for notarization
+          xcrun notarytool submit build/PRNotifier-notarize.zip \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait
+
+          # Staple the notarization ticket
+          xcrun stapler staple "$APP_PATH"
+
+      - name: Create DMG
+        run: |
+          VERSION=$(grep 'MARKETING_VERSION' PRNotifier/project.yml | head -1 | sed 's/.*: *"\(.*\)"/\1/')
+          APP_PATH="build/DerivedData/Build/Products/Release/PRNotifier.app"
+          DMG_PATH="build/PRNotifier-${VERSION}.dmg"
+
+          # Create staging area
+          mkdir -p build/dmg-staging
+          cp -a "$APP_PATH" build/dmg-staging/
+          ln -s /Applications build/dmg-staging/Applications
+
+          # Create compressed DMG
+          hdiutil create \
+            -srcfolder build/dmg-staging \
+            -volname "PRNotifier" \
+            -fs HFS+ \
+            -format UDZO \
+            -imagekey zlib-level=9 \
+            "$DMG_PATH"
+
+          rm -rf build/dmg-staging
+
+          echo "DMG_PATH=$DMG_PATH" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          files: |
-            release/*.dmg
-            release/*.zip 
+          files: build/PRNotifier-*.dmg
+          generate_release_notes: true

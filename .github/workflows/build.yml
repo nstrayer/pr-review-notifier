@@ -2,33 +2,28 @@ name: Build and Test
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
-    runs-on: macos-latest
-    
+    runs-on: macos-15
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run TypeScript compiler
-        run: npx tsc --noEmit
+      - name: Resolve SPM dependencies
+        run: xcodebuild -resolvePackageDependencies -project PRNotifier/PRNotifier.xcodeproj -scheme PRNotifier
 
       - name: Build application
-        run: npm run build
-        
-      - name: Run tests if available
-        run: npm test --if-present
-        continue-on-error: true
+        run: |
+          xcodebuild \
+            -project PRNotifier/PRNotifier.xcodeproj \
+            -scheme PRNotifier \
+            -configuration Debug \
+            build
