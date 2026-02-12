@@ -104,21 +104,21 @@ struct PRListView: View {
             VStack(spacing: 2) {
                 Text("\(count)")
                     .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(isSelected ? color : .secondary)
+                    .fontWeight(isSelected ? .bold : .medium)
                 Text(label)
                     .font(.caption2)
-                    .foregroundStyle(isSelected ? color : Color.secondary)
+                    .fontWeight(isSelected ? .semibold : .regular)
             }
+            .foregroundStyle(isSelected ? color : .primary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
             .background(
-                isSelected ? color.opacity(0.12) : Color.primary.opacity(0.03),
+                isSelected ? color.opacity(0.08) : .clear,
                 in: RoundedRectangle(cornerRadius: 8)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(isSelected ? color.opacity(0.3) : .clear, lineWidth: 1)
+                    .strokeBorder(isSelected ? color : Color.primary.opacity(0.15), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
