@@ -30,6 +30,7 @@ struct PRListView: View {
             if viewModel.activePRs.isEmpty && viewModel.dismissedPRs.isEmpty && viewModel.authoredPRs.isEmpty {
                 emptyState
             } else {
+                statsHeader
                 // Active PRs
                 section(title: "Reviews Requested", prs: viewModel.activePRs) { prID in
                     viewModel.dismiss(prID)
@@ -53,6 +54,36 @@ struct PRListView: View {
             }
         }
         .padding(.bottom, 12)
+    }
+
+    // MARK: - Stats header
+
+    private var statsHeader: some View {
+        HStack(spacing: 4) {
+            Text("To review:")
+                .foregroundStyle(.secondary)
+            Text("\(viewModel.activePRs.count)")
+                .fontWeight(.medium)
+
+            Text("|")
+                .foregroundStyle(.quaternary)
+                .padding(.horizontal, 2)
+
+            Text("Your PRs:")
+                .foregroundStyle(.secondary)
+            Text("\(viewModel.authoredPRs.count)")
+                .fontWeight(.medium)
+
+            if !viewModel.authoredPRs.isEmpty {
+                Text("(\(viewModel.authoredReceivedReview.count) reviewed, \(viewModel.authoredAwaitingReview.count) awaiting)")
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .font(.caption)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.fill.quaternary)
     }
 
     // MARK: - Empty state
@@ -154,15 +185,7 @@ struct PRListView: View {
 
     @ViewBuilder
     private var authoredSections: some View {
-        let awaitingReviews = viewModel.authoredPRs.filter { pr in
-            pr.reviews == nil || pr.reviews!.isEmpty || pr.reviews!.allSatisfy { $0.state == .pending }
-        }
-        let receivedReviews = viewModel.authoredPRs.filter { pr in
-            guard let reviews = pr.reviews else { return false }
-            return reviews.contains { $0.state != .pending }
-        }
-
-        section(title: "Your PRs - Awaiting Reviews", prs: awaitingReviews, showReviewStatus: true)
-        section(title: "Your PRs - Reviews Received", prs: receivedReviews, showReviewStatus: true)
+        section(title: "Your PRs - Awaiting Reviews", prs: viewModel.authoredAwaitingReview, showReviewStatus: true)
+        section(title: "Your PRs - Reviews Received", prs: viewModel.authoredReceivedReview, showReviewStatus: true)
     }
 }

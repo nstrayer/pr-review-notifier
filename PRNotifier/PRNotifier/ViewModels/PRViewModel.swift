@@ -30,6 +30,19 @@ final class PRViewModel {
 
     // MARK: - Computed
 
+    var authoredAwaitingReview: [PR] {
+        authoredPRs.filter { pr in
+            pr.reviews == nil || pr.reviews!.isEmpty || pr.reviews!.allSatisfy { $0.state == .pending }
+        }
+    }
+
+    var authoredReceivedReview: [PR] {
+        authoredPRs.filter { pr in
+            guard let reviews = pr.reviews else { return false }
+            return reviews.contains { $0.state != .pending }
+        }
+    }
+
     var menuBarTitle: String {
         if hasErrors { return "!" }
         if !settings.isConfigured && !settings.devShowSamplePRs { return "Setup" }
