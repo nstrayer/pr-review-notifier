@@ -103,8 +103,10 @@ final class AppSettings {
            let method = AuthMethod(rawValue: stored) {
             self.authMethod = method
         } else if defaults.string(forKey: Keys.username) != nil
-                    || defaults.data(forKey: Keys.repos) != nil
                     || defaults.string(forKey: Keys.oauthUsername) != nil {
+            // Legacy migration: user has config from before authMethod was persisted.
+            // Probe keychain to infer which method they were using.
+            // Falls back to .oauth if tokens were deleted -- user must re-authenticate anyway.
             if KeychainService.getOAuthToken() != nil {
                 self.authMethod = .oauth
             } else if KeychainService.getToken() != nil {
