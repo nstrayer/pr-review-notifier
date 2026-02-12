@@ -377,15 +377,14 @@ struct GitHubService {
             )
         }
 
-        // Add pending reviewers who haven't submitted a review yet
+        // Requested reviewers override any prior review state -- being in this
+        // list means the review was dismissed or re-requested, so treat as pending.
         for user in requestedReviewers {
-            if reviewerMap[user.login] == nil {
-                reviewerMap[user.login] = ReviewInfo(
-                    reviewerLogin: user.login,
-                    reviewerName: user.name,
-                    state: .pending
-                )
-            }
+            reviewerMap[user.login] = ReviewInfo(
+                reviewerLogin: user.login,
+                reviewerName: user.name,
+                state: .pending
+            )
         }
 
         return Array(reviewerMap.values)
