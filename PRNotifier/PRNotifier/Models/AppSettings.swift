@@ -70,11 +70,12 @@ final class AppSettings {
     }
 
     var isConfigured: Bool {
+        // Check cheap conditions first to avoid unnecessary keychain access
+        guard !effectiveUsername.isEmpty && !repos.isEmpty else { return false }
         guard let token = KeychainService.getActiveToken(), !token.isEmpty else {
             return false
         }
-        let hasUsername = !effectiveUsername.isEmpty
-        return hasUsername && !repos.isEmpty
+        return true
     }
 
     init() {
@@ -94,16 +95,25 @@ final class AppSettings {
         self.devShowSamplePRs = defaults.bool(forKey: Keys.devShowSamplePRs)
         self.oauthUsername = defaults.string(forKey: Keys.oauthUsername) ?? ""
 
-        // Determine auth method: check stored preference, then infer from existing tokens
+        // Determine auth method: check stored preference, then infer from existing tokens.
+        // Only probe the keychain for legacy migration (user has config but no stored
+        // authMethod). New users get the default without any keychain access, avoiding
+        // macOS keychain permission prompts on first launch.
         if let stored = defaults.string(forKey: Keys.authMethod),
            let method = AuthMethod(rawValue: stored) {
             self.authMethod = method
-        } else if KeychainService.getOAuthToken() != nil {
-            self.authMethod = .oauth
-        } else if KeychainService.getToken() != nil {
-            self.authMethod = .pat
+        } else if defaults.string(forKey: Keys.username) != nil
+                    || defaults.data(forKey: Keys.repos) != nil
+                    || defaults.string(forKey: Keys.oauthUsername) != nil {
+            if KeychainService.getOAuthToken() != nil {
+                self.authMethod = .oauth
+            } else if KeychainService.getToken() != nil {
+                self.authMethod = .pat
+            } else {
+                self.authMethod = .oauth
+            }
         } else {
-            self.authMethod = .oauth // Default for new users
+            self.authMethod = .oauth
         }
     }
 }
