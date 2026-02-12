@@ -2,7 +2,8 @@ import Foundation
 import KeychainAccess
 
 enum KeychainService {
-    private static let keychain = Keychain(service: "com.nickstrayer.prnotifier")
+    private static let keychain = Keychain(service: "PR Notifier")
+    private static let legacyKeychain = Keychain(service: "com.nickstrayer.prnotifier")
     private static let tokenKey = "github-token"
     private static let oauthTokenKey = "github-oauth-token"
 
@@ -14,8 +15,19 @@ enum KeychainService {
     private static func loadCacheIfNeeded() {
         guard !cacheLoaded else { return }
         cacheLoaded = true
-        cache[tokenKey] = try? keychain.get(tokenKey)
-        cache[oauthTokenKey] = try? keychain.get(oauthTokenKey)
+
+        for key in [tokenKey, oauthTokenKey] {
+            if let value = try? keychain.get(key) {
+                cache[key] = value
+            } else if let value = try? legacyKeychain.get(key) {
+                // Migrate from legacy service name to the new human-readable one
+                cache[key] = value
+                try? keychain.set(value, key: key)
+                try? legacyKeychain.remove(key)
+            } else {
+                cache[key] = nil
+            }
+        }
     }
 
     // MARK: - PAT (existing)
