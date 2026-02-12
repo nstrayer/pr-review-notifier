@@ -64,6 +64,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showContextMenu() {
         let menu = NSMenu()
+
+        let checkNowItem = NSMenuItem(
+            title: "Check Now",
+            action: #selector(checkNowMenuAction),
+            keyEquivalent: "r"
+        )
+        checkNowItem.target = self
+        menu.addItem(checkNowItem)
+
+        menu.addItem(.separator())
+
         menu.addItem(
             NSMenuItem(
                 title: "Quit PR Notifier",
@@ -74,5 +85,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
         statusItem.menu = nil
+    }
+
+    @objc private func checkNowMenuAction() {
+        Task { await viewModel.checkNow() }
     }
 }
