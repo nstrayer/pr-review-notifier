@@ -1,10 +1,17 @@
 import SwiftUI
 
+enum StatsTab: String, CaseIterable {
+    case toReview
+    case reviewed
+    case awaiting
+}
+
 struct PRListView: View {
     @Environment(PRViewModel.self) private var viewModel
 
     var onNavigateToSettings: (() -> Void)?
 
+    @State private var selectedTab: StatsTab = .toReview
     @State private var showDismissed = false
 
     var body: some View {
@@ -31,26 +38,15 @@ struct PRListView: View {
                 emptyState
             } else {
                 statsHeader
-                // Active PRs
-                section(title: "Reviews Requested", prs: viewModel.activePRs) { prID in
-                    viewModel.dismiss(prID)
-                }
 
-                if viewModel.activePRs.isEmpty {
-                    Text("No PRs waiting for your review")
-                        .font(.subheadline)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
+                switch selectedTab {
+                case .toReview:
+                    toReviewContent
+                case .reviewed:
+                    reviewedContent
+                case .awaiting:
+                    awaitingContent
                 }
-
-                // Dismissed PRs
-                if !viewModel.dismissedPRs.isEmpty {
-                    dismissedSection
-                }
-
-                // Authored PRs
-                authoredSections
             }
         }
         .padding(.bottom, 12)
@@ -61,16 +57,19 @@ struct PRListView: View {
     private var statsHeader: some View {
         HStack(spacing: 8) {
             statCard(
+                tab: .toReview,
                 count: viewModel.activePRs.count,
                 label: "To review",
                 color: .blue
             )
             statCard(
+                tab: .reviewed,
                 count: viewModel.authoredReceivedReview.count,
                 label: "Reviewed",
                 color: .green
             )
             statCard(
+                tab: .awaiting,
                 count: viewModel.authoredAwaitingReview.count,
                 label: "Awaiting",
                 color: .orange
@@ -80,19 +79,101 @@ struct PRListView: View {
         .padding(.top, 8)
     }
 
-    private func statCard(count: Int, label: String, color: Color) -> some View {
-        VStack(spacing: 2) {
-            Text("\(count)")
-                .font(.title2)
-                .fontWeight(.semibold)
-                .foregroundStyle(color)
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+    private func statCard(tab: StatsTab, count: Int, label: String, color: Color) -> some View {
+        let isSelected = selectedTab == tab
+
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selectedTab = tab
+            }
+        } label: {
+            VStack(spacing: 2) {
+                Text("\(count)")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(isSelected ? color : .secondary)
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(isSelected ? color : Color.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(
+                isSelected ? color.opacity(0.12) : Color.primary.opacity(0.03),
+                in: RoundedRectangle(cornerRadius: 8)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(isSelected ? color.opacity(0.3) : .clear, lineWidth: 1)
+            )
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Tab content
+
+    @ViewBuilder
+    private var toReviewContent: some View {
+        if viewModel.activePRs.isEmpty {
+            tabEmptyState("No PRs waiting for your review")
+        } else {
+            prList(prs: viewModel.activePRs) { prID in
+                viewModel.dismiss(prID)
+            }
+        }
+
+        if !viewModel.dismissedPRs.isEmpty {
+            dismissedSection
+        }
+    }
+
+    @ViewBuilder
+    private var reviewedContent: some View {
+        if viewModel.authoredReceivedReview.isEmpty {
+            tabEmptyState("None of your PRs have been reviewed yet")
+        } else {
+            prList(prs: viewModel.authoredReceivedReview, showReviewStatus: true)
+        }
+    }
+
+    @ViewBuilder
+    private var awaitingContent: some View {
+        if viewModel.authoredAwaitingReview.isEmpty {
+            tabEmptyState("All your PRs have received reviews")
+        } else {
+            prList(prs: viewModel.authoredAwaitingReview, showReviewStatus: true)
+        }
+    }
+
+    private func tabEmptyState(_ message: String) -> some View {
+        Text(message)
+            .font(.subheadline)
+            .foregroundStyle(.tertiary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 20)
+    }
+
+    // MARK: - PR list helper
+
+    @ViewBuilder
+    private func prList(
+        prs: [PR],
+        action: ((Int) -> Void)? = nil,
+        isRestore: Bool = false,
+        showReviewStatus: Bool = false
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(prs) { pr in
+                PRCardView(
+                    pr: pr,
+                    isDismissed: isRestore,
+                    showReviewStatus: showReviewStatus,
+                    onDismiss: isRestore ? nil : action.map { a in { a(pr.id) } },
+                    onRestore: isRestore ? action.map { a in { a(pr.id) } } : nil
+                )
+            }
+        }
+        .padding(.top, 8)
     }
 
     // MARK: - Empty state
@@ -110,43 +191,6 @@ struct PRListView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
         .padding(.horizontal, 16)
-    }
-
-    // MARK: - Section helper
-
-    @ViewBuilder
-    private func section(
-        title: String,
-        prs: [PR],
-        action: ((Int) -> Void)? = nil,
-        isRestore: Bool = false,
-        showReviewStatus: Bool = false
-    ) -> some View {
-        if !prs.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(title)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.secondary)
-                    Text("(\(prs.count))")
-                        .font(.subheadline)
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
-
-                ForEach(prs) { pr in
-                    PRCardView(
-                        pr: pr,
-                        isDismissed: isRestore,
-                        showReviewStatus: showReviewStatus,
-                        onDismiss: isRestore ? nil : action.map { a in { a(pr.id) } },
-                        onRestore: isRestore ? action.map { a in { a(pr.id) } } : nil
-                    )
-                }
-            }
-        }
     }
 
     // MARK: - Dismissed section (collapsible)
@@ -190,11 +234,4 @@ struct PRListView: View {
         }
     }
 
-    // MARK: - Authored sections
-
-    @ViewBuilder
-    private var authoredSections: some View {
-        section(title: "Your PRs - Awaiting Reviews", prs: viewModel.authoredAwaitingReview, showReviewStatus: true)
-        section(title: "Your PRs - Reviews Received", prs: viewModel.authoredReceivedReview, showReviewStatus: true)
-    }
 }
