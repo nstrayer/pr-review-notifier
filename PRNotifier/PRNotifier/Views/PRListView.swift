@@ -14,6 +14,13 @@ struct PRListView: View {
     @State private var selectedTab: StatsTab = .toReview
     @State private var showDismissed = false
 
+    private var bestDefaultTab: StatsTab {
+        if !viewModel.activePRs.isEmpty { return .toReview }
+        if !viewModel.authoredReceivedReview.isEmpty { return .reviewed }
+        if !viewModel.authoredAwaitingReview.isEmpty { return .awaiting }
+        return .toReview
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Error banner
@@ -47,9 +54,16 @@ struct PRListView: View {
                 case .awaiting:
                     awaitingContent
                 }
+
+                if !viewModel.dismissedPRs.isEmpty {
+                    dismissedSection
+                }
             }
         }
         .padding(.bottom, 12)
+        .onAppear {
+            selectedTab = bestDefaultTab
+        }
     }
 
     // MARK: - Stats header
@@ -117,13 +131,9 @@ struct PRListView: View {
         if viewModel.activePRs.isEmpty {
             tabEmptyState("No PRs waiting for your review")
         } else {
-            prList(prs: viewModel.activePRs) { prID in
+            prList(prs: viewModel.activePRs, onDismiss: { prID in
                 viewModel.dismiss(prID)
-            }
-        }
-
-        if !viewModel.dismissedPRs.isEmpty {
-            dismissedSection
+            })
         }
     }
 
@@ -158,18 +168,17 @@ struct PRListView: View {
     @ViewBuilder
     private func prList(
         prs: [PR],
-        action: ((Int) -> Void)? = nil,
-        isRestore: Bool = false,
+        onDismiss: ((Int) -> Void)? = nil,
         showReviewStatus: Bool = false
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(prs) { pr in
                 PRCardView(
                     pr: pr,
-                    isDismissed: isRestore,
+                    isDismissed: false,
                     showReviewStatus: showReviewStatus,
-                    onDismiss: isRestore ? nil : action.map { a in { a(pr.id) } },
-                    onRestore: isRestore ? action.map { a in { a(pr.id) } } : nil
+                    onDismiss: onDismiss.map { a in { a(pr.id) } },
+                    onRestore: nil
                 )
             }
         }
