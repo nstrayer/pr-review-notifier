@@ -120,6 +120,7 @@ struct PRListView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(isSelected ? color : Color.primary.opacity(0.15), lineWidth: 1)
             )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
