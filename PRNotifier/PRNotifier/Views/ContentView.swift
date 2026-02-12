@@ -65,11 +65,10 @@ struct ContentView: View {
             Button {
                 Task { await viewModel.checkNow() }
             } label: {
-                HStack {
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .controlSize(.small)
-                    }
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .opacity(viewModel.isLoading ? 1 : 0)
                     Text(viewModel.isLoading ? "Checking..." : "Check Now")
                 }
                 .frame(maxWidth: .infinity)
