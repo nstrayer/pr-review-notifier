@@ -38,6 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Start observing viewModel for title updates
         observeMenuBarTitle()
+        observeConfigured()
 
         // Auto-open settings on first launch if not configured
         if !viewModel.settings.isConfigured && !viewModel.settings.devShowSamplePRs {
@@ -48,6 +49,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func openSettings() {
         popover.performClose(nil)
         settingsWindowController.showSettings()
+    }
+
+    private func observeConfigured() {
+        withObservationTracking {
+            _ = viewModel.settings.isConfigured
+        } onChange: {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if !self.viewModel.settings.isConfigured {
+                    self.openSettings()
+                }
+                self.observeConfigured()
+            }
+        }
     }
 
     private func observeMenuBarTitle() {
