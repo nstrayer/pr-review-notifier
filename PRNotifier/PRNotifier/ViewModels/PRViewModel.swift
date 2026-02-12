@@ -32,7 +32,8 @@ final class PRViewModel {
 
     var authoredAwaitingReview: [PR] {
         authoredPRs.filter { pr in
-            pr.reviews == nil || pr.reviews!.isEmpty || pr.reviews!.allSatisfy { $0.state == .pending }
+            guard let reviews = pr.reviews else { return true }
+            return reviews.isEmpty || reviews.allSatisfy { $0.state == .pending }
         }
     }
 
