@@ -25,6 +25,7 @@ struct ContentView: View {
                 ScrollView {
                     PRListView(onNavigateToSettings: { selectedTab = .settings })
                 }
+                footer
             case .settings:
                 SettingsView()
             }
@@ -51,23 +52,35 @@ struct ContentView: View {
         HStack {
             Text("PR Notifier")
                 .font(.headline)
-
             Spacer()
-
-            if selectedTab == .prs {
-                Button {
-                    Task { await viewModel.checkNow() }
-                } label: {
-                    Text(viewModel.isLoading ? "Checking..." : "Check Now")
-                }
-                .disabled(viewModel.isLoading)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(.bar)
+    }
+
+    private var footer: some View {
+        VStack(spacing: 0) {
+            Divider()
+            Button {
+                Task { await viewModel.checkNow() }
+            } label: {
+                HStack {
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    Text(viewModel.isLoading ? "Checking..." : "Check Now")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .disabled(viewModel.isLoading)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.bar)
+        }
     }
 
     // MARK: - Tab bar
