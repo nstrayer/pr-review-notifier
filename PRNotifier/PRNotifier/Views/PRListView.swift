@@ -97,7 +97,7 @@ struct PRListView: View {
         let isSelected = selectedTab == tab
 
         return Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(.easeInOut(duration: 0.1)) {
                 selectedTab = tab
             }
         } label: {
@@ -208,7 +208,7 @@ struct PRListView: View {
     private var dismissedSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.easeInOut(duration: 0.12)) {
                     showDismissed.toggle()
                 }
             } label: {
