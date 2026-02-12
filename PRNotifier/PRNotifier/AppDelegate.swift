@@ -51,18 +51,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindowController.showSettings()
     }
 
+    private var wasConfigured: Bool = false
+
     private func observeConfigured() {
-        withObservationTracking {
-            _ = viewModel.settings.isConfigured
+        let currentValue = withObservationTracking {
+            viewModel.settings.isConfigured
         } onChange: {
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                if !self.viewModel.settings.isConfigured {
-                    self.openSettings()
-                }
                 self.observeConfigured()
             }
         }
+        // Only open settings on an actual true -> false transition
+        if wasConfigured && !currentValue {
+            openSettings()
+        }
+        wasConfigured = currentValue
     }
 
     private func observeMenuBarTitle() {
