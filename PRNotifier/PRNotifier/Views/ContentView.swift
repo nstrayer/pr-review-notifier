@@ -107,6 +107,7 @@ struct ContentView: View {
                             .fill(selectedTab == tab ? Color.accentColor : .clear)
                             .frame(height: 2)
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
