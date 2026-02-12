@@ -21,10 +21,12 @@ enum KeychainService {
             if let value = try? keychain.get(key) {
                 cache[key] = value
             } else if let value = try? legacyKeychain.get(key) {
-                // Migrate from legacy service name to the new human-readable one
+                // Migrate from legacy service name to the new human-readable one.
+                // Only remove the legacy entry if the write to the new keychain succeeds.
                 cache[key] = value
-                try? keychain.set(value, key: key)
-                try? legacyKeychain.remove(key)
+                if let _ = try? keychain.set(value, key: key) {
+                    try? legacyKeychain.remove(key)
+                }
             } else {
                 cache[key] = nil
             }
