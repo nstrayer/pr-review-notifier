@@ -27,10 +27,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
         let newPanel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 560),
-            styleMask: [.titled, .closable],
+            styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
+        newPanel.minSize = NSSize(width: 360, height: 400)
+        newPanel.maxSize = NSSize(width: 600, height: 900)
         newPanel.title = "PR Notifier Settings"
         newPanel.contentViewController = hostingController
         newPanel.isFloatingPanel = true
