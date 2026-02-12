@@ -2,47 +2,22 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(PRViewModel.self) private var viewModel
-    @Environment(AppSettings.self) private var settings
 
-    enum Tab: String, CaseIterable {
-        case prs = "Pull Requests"
-        case settings = "Settings"
-    }
-
-    @State private var selectedTab: Tab = .prs
+    var onOpenSettings: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
             header
 
-            // Tab bar
-            tabBar
-
-            // Content
-            switch selectedTab {
-            case .prs:
-                ScrollView {
-                    PRListView(onNavigateToSettings: { selectedTab = .settings })
-                }
-                footer
-            case .settings:
-                SettingsView()
+            ScrollView {
+                PRListView(onNavigateToSettings: onOpenSettings)
             }
+
+            footer
         }
         .frame(width: 400, height: 500)
         .task {
             await viewModel.start()
-        }
-        .onChange(of: settings.isConfigured) {
-            if !settings.isConfigured {
-                selectedTab = .settings
-            }
-        }
-        .onAppear {
-            if !settings.isConfigured && !settings.devShowSamplePRs {
-                selectedTab = .settings
-            }
         }
     }
 
@@ -53,6 +28,13 @@ struct ContentView: View {
             Text("PR Notifier")
                 .font(.headline)
             Spacer()
+            Button {
+                onOpenSettings()
+            } label: {
+                Image(systemName: "gearshape")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -80,40 +62,5 @@ struct ContentView: View {
             .padding(.vertical, 10)
             .background(.bar)
         }
-    }
-
-    // MARK: - Tab bar
-
-    private var tabBar: some View {
-        HStack(spacing: 0) {
-            ForEach(Tab.allCases, id: \.self) { tab in
-                Button {
-                    selectedTab = tab
-                } label: {
-                    VStack(spacing: 6) {
-                        HStack(spacing: 4) {
-                            Text(tab.rawValue)
-                                .font(.subheadline)
-                                .fontWeight(selectedTab == tab ? .semibold : .regular)
-                            if tab == .prs && !viewModel.activePRs.isEmpty {
-                                Text("(\(viewModel.activePRs.count))")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .foregroundStyle(selectedTab == tab ? .primary : .secondary)
-
-                        Rectangle()
-                            .fill(selectedTab == tab ? Color.accentColor : .clear)
-                            .frame(height: 2)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
-            }
-        }
-        .padding(.horizontal, 16)
-        .background(.bar)
     }
 }

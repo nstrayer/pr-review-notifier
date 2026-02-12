@@ -7,15 +7,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var popover: NSPopover!
     private let viewModel = PRViewModel(settings: AppSettings())
 
+    private lazy var settingsWindowController = SettingsWindowController(
+        viewModel: viewModel,
+        settings: viewModel.settings
+    )
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Create popover with SwiftUI content
         popover = NSPopover()
         popover.contentSize = NSSize(width: 400, height: 500)
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(
-            rootView: ContentView()
-                .environment(viewModel)
-                .environment(viewModel.settings)
+            rootView: ContentView(onOpenSettings: { [weak self] in
+                self?.openSettings()
+            })
+            .environment(viewModel)
+            .environment(viewModel.settings)
         )
 
         // Create status bar item
@@ -31,6 +38,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Start observing viewModel for title updates
         observeMenuBarTitle()
+
+        // Auto-open settings on first launch if not configured
+        if !viewModel.settings.isConfigured && !viewModel.settings.devShowSamplePRs {
+            openSettings()
+        }
+    }
+
+    private func openSettings() {
+        popover.performClose(nil)
+        settingsWindowController.showSettings()
     }
 
     private func observeMenuBarTitle() {
@@ -75,6 +92,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
+        let settingsItem = NSMenuItem(
+            title: "Settings...",
+            action: #selector(settingsMenuAction),
+            keyEquivalent: ","
+        )
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        menu.addItem(.separator())
+
         menu.addItem(
             NSMenuItem(
                 title: "Quit PR Notifier",
@@ -89,5 +116,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func checkNowMenuAction() {
         Task { await viewModel.checkNow() }
+    }
+
+    @objc private func settingsMenuAction() {
+        openSettings()
     }
 }

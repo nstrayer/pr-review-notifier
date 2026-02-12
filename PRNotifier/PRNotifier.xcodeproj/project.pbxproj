@@ -24,6 +24,7 @@
 		A9888D351E0AEEABC9D9A146 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CD81E553083EFC098AC70F6 /* AppDelegate.swift */; };
 		ABBD3AAFCBE1941AD9A3EC79 /* OAuthConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E422FA488CCC18896757D8 /* OAuthConfig.swift */; };
 		B991AA3BC02DB6EA9D3C7E23 /* PersistenceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F34406174F3CFE91C40B10D /* PersistenceManager.swift */; };
+		BB9B87A372AF8FADE4DEFD1E /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A0612768E90EAC1812B980B /* SettingsWindowController.swift */; };
 		C5D2581BEBE27AE0422943CB /* ReviewInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98BF1076CB89563FAC056E1A /* ReviewInfo.swift */; };
 		CA76934D51D5C156813E2601 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65630BC2A565A84BDBA082C5 /* KeychainService.swift */; };
 		DA6F3A0FB1DC0F3EAE34C637 /* GitHubService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B06E030EF2210D17AF2CA774 /* GitHubService.swift */; };
@@ -36,6 +37,7 @@
 		20BD5AAF2E10C76397D7BC42 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		213AF4149CFA6E62F6C9CD46 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		31ADB779D4EC6B946BCD1EB4 /* ReviewBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewBadgeView.swift; sourceTree = "<group>"; };
+		3A0612768E90EAC1812B980B /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 		3CD81E553083EFC098AC70F6 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		54C7C0006D42531CCF7080A6 /* InputValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputValidation.swift; sourceTree = "<group>"; };
 		5F953AB350C82F17BA9E4667 /* PRNotifier.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PRNotifier.entitlements; sourceTree = "<group>"; };
@@ -148,6 +150,7 @@
 				3CD81E553083EFC098AC70F6 /* AppDelegate.swift */,
 				5F953AB350C82F17BA9E4667 /* PRNotifier.entitlements */,
 				BB12FF989CC5332C40196DBE /* PRNotifierApp.swift */,
+				3A0612768E90EAC1812B980B /* SettingsWindowController.swift */,
 				08B033612F7701F97703F0CF /* Models */,
 				961E6F58AE2E301BB0B7C7EF /* Resources */,
 				78C5922B2405CBE12CCEFBB3 /* Services */,
@@ -248,6 +251,7 @@
 				DD3AB4F355A32E7A8777E1DD /* ReviewBadgeView.swift in Sources */,
 				C5D2581BEBE27AE0422943CB /* ReviewInfo.swift in Sources */,
 				7810D93EC8BB09C1836EDA71 /* SettingsView.swift in Sources */,
+				BB9B87A372AF8FADE4DEFD1E /* SettingsWindowController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
