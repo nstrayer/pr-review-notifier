@@ -24,8 +24,11 @@ enum KeychainService {
                 // Migrate from legacy service name to the new human-readable one.
                 // Only remove the legacy entry if the write to the new keychain succeeds.
                 cache[key] = value
-                if let _ = try? keychain.set(value, key: key) {
+                do {
+                    try keychain.set(value, key: key)
                     try? legacyKeychain.remove(key)
+                } catch {
+                    // Write failed; keep legacy entry intact
                 }
             } else {
                 cache[key] = nil
