@@ -5,7 +5,7 @@ enum AuthMethod: String {
     case pat
 }
 
-@Observable
+@MainActor @Observable
 final class AppSettings {
     private let defaults = UserDefaults.standard
 

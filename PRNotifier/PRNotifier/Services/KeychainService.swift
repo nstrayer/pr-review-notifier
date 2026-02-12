@@ -1,6 +1,7 @@
 import Foundation
 import KeychainAccess
 
+@MainActor
 enum KeychainService {
     private static let keychain = Keychain(service: "PR Notifier")
     private static let legacyKeychain = Keychain(service: "com.nickstrayer.prnotifier")
@@ -34,7 +35,7 @@ enum KeychainService {
 
     static func getToken() -> String? {
         loadCacheIfNeeded()
-        return cache[tokenKey] ?? nil
+        return cache[tokenKey, default: nil]
     }
 
     static func setToken(_ token: String) throws {
@@ -51,7 +52,7 @@ enum KeychainService {
 
     static func getOAuthToken() -> String? {
         loadCacheIfNeeded()
-        return cache[oauthTokenKey] ?? nil
+        return cache[oauthTokenKey, default: nil]
     }
 
     static func setOAuthToken(_ token: String) throws {
