@@ -59,31 +59,40 @@ struct PRListView: View {
     // MARK: - Stats header
 
     private var statsHeader: some View {
-        HStack(spacing: 4) {
-            Text("To review:")
-                .foregroundStyle(.secondary)
-            Text("\(viewModel.activePRs.count)")
-                .fontWeight(.medium)
-
-            Text("|")
-                .foregroundStyle(.quaternary)
-                .padding(.horizontal, 2)
-
-            Text("Your PRs:")
-                .foregroundStyle(.secondary)
-            Text("\(viewModel.authoredPRs.count)")
-                .fontWeight(.medium)
-
-            if !viewModel.authoredPRs.isEmpty {
-                Text("(\(viewModel.authoredReceivedReview.count) reviewed, \(viewModel.authoredAwaitingReview.count) awaiting)")
-                    .foregroundStyle(.tertiary)
-            }
+        HStack(spacing: 8) {
+            statCard(
+                count: viewModel.activePRs.count,
+                label: "To review",
+                color: .blue
+            )
+            statCard(
+                count: viewModel.authoredReceivedReview.count,
+                label: "Reviewed",
+                color: .green
+            )
+            statCard(
+                count: viewModel.authoredAwaitingReview.count,
+                label: "Awaiting",
+                color: .orange
+            )
         }
-        .font(.caption)
         .padding(.horizontal, 16)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.fill.quaternary)
+        .padding(.top, 8)
+    }
+
+    private func statCard(count: Int, label: String, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text("\(count)")
+                .font(.title2)
+                .fontWeight(.semibold)
+                .foregroundStyle(color)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: - Empty state
