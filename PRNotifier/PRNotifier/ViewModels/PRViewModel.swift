@@ -118,16 +118,16 @@ final class PRViewModel {
         }
 
         guard settings.isConfigured else {
-            // Build config errors like the Electron version
+            // Build config errors
             var configErrors: [CheckError] = []
-            let token = KeychainService.getToken()
+            let token = KeychainService.getActiveToken()
             if token == nil || token!.isEmpty {
                 configErrors.append(CheckError(
                     type: .auth,
-                    message: "GitHub token not configured. Please add your token in settings."
+                    message: "Not authenticated. Sign in with GitHub or add a token in settings."
                 ))
             }
-            if settings.username.isEmpty {
+            if settings.effectiveUsername.isEmpty {
                 configErrors.append(CheckError(
                     type: .auth,
                     message: "GitHub username not configured. Please add your username in settings."
@@ -145,14 +145,14 @@ final class PRViewModel {
             return
         }
 
-        guard let token = KeychainService.getToken() else { return }
+        guard let token = KeychainService.getActiveToken() else { return }
         let dismissedIDs = await persistence.getDismissedPRIDs()
 
         do {
             let result = try await github.checkForPRs(
                 token: token,
                 repos: settings.repos,
-                username: settings.username,
+                username: settings.effectiveUsername,
                 dismissedIDs: dismissedIDs
             )
 

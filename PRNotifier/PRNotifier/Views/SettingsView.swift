@@ -18,6 +18,8 @@ struct SettingsView: View {
     @State private var showDevOptions = false
     @State private var didLoad = false
     @State private var showSaveConfirmation = false
+    @State private var showOAuthSheet = false
+    @State private var showPATSection = false
 
     var body: some View {
         Form {
@@ -26,32 +28,12 @@ struct SettingsView: View {
                 setupBanner
             }
 
-            // GitHub Token
-            Section {
-                SecureField("Token", text: $token)
-                    .textFieldStyle(.roundedBorder)
-                    .onChange(of: token) { errors.removeValue(forKey: "token") }
-                if let error = errors["token"] {
-                    Text(error).font(.caption).foregroundStyle(.red)
-                }
-            } header: {
-                Text("GitHub Token")
-            } footer: {
-                Text("A personal access token used to authenticate with the GitHub API. Generate one at github.com > Settings > Developer settings > Personal access tokens.")
-            }
+            // Authentication
+            authSection
 
-            // GitHub Username
-            Section {
-                TextField("Username", text: $username)
-                    .textFieldStyle(.roundedBorder)
-                    .onChange(of: username) { errors.removeValue(forKey: "username") }
-                if let error = errors["username"] {
-                    Text(error).font(.caption).foregroundStyle(.red)
-                }
-            } header: {
-                Text("GitHub Username")
-            } footer: {
-                Text("Your GitHub username. Used to identify pull requests where your review is requested.")
+            // GitHub Username (only for PAT mode)
+            if settings.authMethod == .pat {
+                usernameSection
             }
 
             // Repositories
@@ -158,6 +140,102 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .onAppear { loadSettings() }
+        .sheet(isPresented: $showOAuthSheet) {
+            OAuthLoginView {
+                // On success: reload settings and restart polling
+                loadSettingsFromSource()
+                viewModel.restartPolling()
+            }
+        }
+    }
+
+    // MARK: - Auth Section
+
+    @ViewBuilder
+    private var authSection: some View {
+        Section {
+            switch settings.authMethod {
+            case .oauth:
+                if !settings.oauthUsername.isEmpty {
+                    // Signed in via OAuth
+                    HStack {
+                        Image(systemName: "person.crop.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("Signed in as @\(settings.oauthUsername)")
+                        Spacer()
+                        Button("Sign Out") { signOut() }
+                            .foregroundStyle(.red)
+                    }
+                } else {
+                    // Not signed in yet
+                    Button("Sign in with GitHub") {
+                        showOAuthSheet = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity)
+                }
+
+                // Advanced PAT option
+                DisclosureGroup("Advanced: Use Personal Access Token", isExpanded: $showPATSection) {
+                    SecureField("Token", text: $token)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: token) { errors.removeValue(forKey: "token") }
+                    if let error = errors["token"] {
+                        Text(error).font(.caption).foregroundStyle(.red)
+                    }
+                    Button("Switch to PAT") {
+                        switchToPAT()
+                    }
+                    .disabled(token.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+
+            case .pat:
+                // Using PAT
+                HStack {
+                    Image(systemName: "key.fill")
+                        .foregroundStyle(.secondary)
+                    Text("Using Personal Access Token")
+                        .foregroundStyle(.secondary)
+                }
+
+                SecureField("Token", text: $token)
+                    .textFieldStyle(.roundedBorder)
+                    .onChange(of: token) { errors.removeValue(forKey: "token") }
+                if let error = errors["token"] {
+                    Text(error).font(.caption).foregroundStyle(.red)
+                }
+
+                Button("Switch to GitHub Sign-In") {
+                    showOAuthSheet = true
+                }
+                .font(.callout)
+            }
+        } header: {
+            Text("Authentication")
+        } footer: {
+            if settings.authMethod == .oauth && settings.oauthUsername.isEmpty {
+                Text("Sign in with your GitHub account to authenticate. Your browser will open to complete the process.")
+            } else if settings.authMethod == .pat {
+                Text("A personal access token used to authenticate with the GitHub API. Generate one at github.com > Settings > Developer settings > Personal access tokens.")
+            }
+        }
+    }
+
+    // MARK: - Username Section
+
+    private var usernameSection: some View {
+        Section {
+            TextField("Username", text: $username)
+                .textFieldStyle(.roundedBorder)
+                .onChange(of: username) { errors.removeValue(forKey: "username") }
+            if let error = errors["username"] {
+                Text(error).font(.caption).foregroundStyle(.red)
+            }
+        } header: {
+            Text("GitHub Username")
+        } footer: {
+            Text("Your GitHub username. Used to identify pull requests where your review is requested.")
+        }
     }
 
     // MARK: - Setup banner
@@ -166,7 +244,7 @@ struct SettingsView: View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.yellow)
-            Text("Please configure your GitHub token, username, and repositories to get started.")
+            Text("Sign in with GitHub and add repositories to get started.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -184,6 +262,10 @@ struct SettingsView: View {
     private func loadSettings() {
         guard !didLoad else { return }
         didLoad = true
+        loadSettingsFromSource()
+    }
+
+    private func loadSettingsFromSource() {
         token = KeychainService.getToken() ?? ""
         username = settings.username
         repos = settings.repos
@@ -216,20 +298,24 @@ struct SettingsView: View {
     private func save() {
         errors = [:]
 
-        // Validate token
-        let trimmedToken = token.trimmingCharacters(in: .whitespaces)
-        if trimmedToken.isEmpty {
-            errors["token"] = "GitHub token is required."
-        } else if !InputValidation.validateGitHubToken(trimmedToken) {
-            errors["token"] = "Invalid token. Must start with ghp_, gho_, ghs_, or github_pat_ and be 40+ characters."
+        // Only validate token for PAT mode
+        if settings.authMethod == .pat {
+            let trimmedToken = token.trimmingCharacters(in: .whitespaces)
+            if trimmedToken.isEmpty {
+                errors["token"] = "GitHub token is required."
+            } else if !InputValidation.validateGitHubToken(trimmedToken) {
+                errors["token"] = "Invalid token. Must start with ghp_, gho_, ghs_, or github_pat_ and be 40+ characters."
+            }
         }
 
-        // Validate username
-        let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
-        if trimmedUsername.isEmpty {
-            errors["username"] = "GitHub username is required."
-        } else if !InputValidation.validateUsername(trimmedUsername) {
-            errors["username"] = "Invalid username. Use alphanumeric characters and hyphens only."
+        // Validate username (only for PAT mode)
+        if settings.authMethod == .pat {
+            let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
+            if trimmedUsername.isEmpty {
+                errors["username"] = "GitHub username is required."
+            } else if !InputValidation.validateUsername(trimmedUsername) {
+                errors["username"] = "Invalid username. Use alphanumeric characters and hyphens only."
+            }
         }
 
         // Validate check interval
@@ -239,20 +325,25 @@ struct SettingsView: View {
 
         guard errors.isEmpty else { return }
 
-        // Write token
-        do {
-            if trimmedToken.isEmpty {
-                try KeychainService.deleteToken()
-            } else {
-                try KeychainService.setToken(trimmedToken)
+        // Write PAT token if in PAT mode
+        if settings.authMethod == .pat {
+            let trimmedToken = token.trimmingCharacters(in: .whitespaces)
+            do {
+                if trimmedToken.isEmpty {
+                    try KeychainService.deleteToken()
+                } else {
+                    try KeychainService.setToken(trimmedToken)
+                }
+            } catch {
+                errors["token"] = "Failed to save token: \(error.localizedDescription)"
+                return
             }
-        } catch {
-            errors["token"] = "Failed to save token: \(error.localizedDescription)"
-            return
         }
 
         // Write settings
-        settings.username = trimmedUsername
+        if settings.authMethod == .pat {
+            settings.username = username.trimmingCharacters(in: .whitespaces)
+        }
         settings.repos = repos
         settings.checkInterval = checkInterval
 
@@ -263,6 +354,36 @@ struct SettingsView: View {
         showSaveConfirmation = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             showSaveConfirmation = false
+        }
+    }
+
+    // MARK: - Auth Actions
+
+    private func signOut() {
+        try? KeychainService.deleteOAuthToken()
+        settings.authMethod = .oauth
+        settings.oauthUsername = ""
+        viewModel.restartPolling()
+    }
+
+    private func switchToPAT() {
+        let trimmedToken = token.trimmingCharacters(in: .whitespaces)
+        guard !trimmedToken.isEmpty else { return }
+
+        guard InputValidation.validateGitHubToken(trimmedToken) else {
+            errors["token"] = "Invalid token. Must start with ghp_, gho_, ghs_, or github_pat_ and be 40+ characters."
+            return
+        }
+
+        do {
+            try KeychainService.setToken(trimmedToken)
+            // Clear OAuth token
+            try? KeychainService.deleteOAuthToken()
+            settings.authMethod = .pat
+            settings.oauthUsername = ""
+            showPATSection = false
+        } catch {
+            errors["token"] = "Failed to save token: \(error.localizedDescription)"
         }
     }
 

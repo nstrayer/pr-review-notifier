@@ -1,5 +1,10 @@
 import Foundation
 
+enum AuthMethod: String {
+    case oauth
+    case pat
+}
+
 @Observable
 final class AppSettings {
     private let defaults = UserDefaults.standard
@@ -12,6 +17,8 @@ final class AppSettings {
         static let autoLaunch = "autoLaunch"
         static let settingsPrompted = "settingsPrompted"
         static let devShowSamplePRs = "devShowSamplePRs"
+        static let authMethod = "authMethod"
+        static let oauthUsername = "oauthUsername"
     }
 
     var repos: [String] {
@@ -46,11 +53,28 @@ final class AppSettings {
         didSet { defaults.set(devShowSamplePRs, forKey: Keys.devShowSamplePRs) }
     }
 
-    var isConfigured: Bool {
-        if let token = KeychainService.getToken(), !token.isEmpty {
-            return !username.isEmpty && !repos.isEmpty
+    var authMethod: AuthMethod {
+        didSet { defaults.set(authMethod.rawValue, forKey: Keys.authMethod) }
+    }
+
+    var oauthUsername: String {
+        didSet { defaults.set(oauthUsername, forKey: Keys.oauthUsername) }
+    }
+
+    /// The effective username -- OAuth auto-populates, PAT requires manual entry.
+    var effectiveUsername: String {
+        switch authMethod {
+        case .oauth: return oauthUsername.isEmpty ? username : oauthUsername
+        case .pat: return username
         }
-        return false
+    }
+
+    var isConfigured: Bool {
+        guard let token = KeychainService.getActiveToken(), !token.isEmpty else {
+            return false
+        }
+        let hasUsername = !effectiveUsername.isEmpty
+        return hasUsername && !repos.isEmpty
     }
 
     init() {
@@ -68,5 +92,18 @@ final class AppSettings {
         self.autoLaunch = defaults.object(forKey: Keys.autoLaunch) == nil ? true : defaults.bool(forKey: Keys.autoLaunch)
         self.settingsPrompted = defaults.bool(forKey: Keys.settingsPrompted)
         self.devShowSamplePRs = defaults.bool(forKey: Keys.devShowSamplePRs)
+        self.oauthUsername = defaults.string(forKey: Keys.oauthUsername) ?? ""
+
+        // Determine auth method: check stored preference, then infer from existing tokens
+        if let stored = defaults.string(forKey: Keys.authMethod),
+           let method = AuthMethod(rawValue: stored) {
+            self.authMethod = method
+        } else if KeychainService.getOAuthToken() != nil {
+            self.authMethod = .oauth
+        } else if KeychainService.getToken() != nil {
+            self.authMethod = .pat
+        } else {
+            self.authMethod = .oauth // Default for new users
+        }
     }
 }

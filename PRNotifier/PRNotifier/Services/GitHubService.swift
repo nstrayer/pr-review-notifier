@@ -312,7 +312,7 @@ struct GitHubService {
                 type: .auth,
                 message: "GitHub authentication failed",
                 repoName: context,
-                details: "Your token may be expired, invalid, or revoked."
+                details: "Your authentication may be expired, invalid, or revoked. Try signing in again or updating your token in settings."
             )
 
         case 403:
@@ -321,7 +321,18 @@ struct GitHubService {
                     type: .rateLimit,
                     message: "GitHub API rate limit exceeded",
                     repoName: context,
-                    details: "You've made too many requests. Consider using a personal access token for higher limits."
+                    details: "You've made too many requests. Consider increasing your check interval."
+                )
+            }
+            let lower = error.message.lowercased()
+            if lower.contains("saml") || lower.contains("sso") {
+                // Extract org name from context (owner/repo -> owner)
+                let org = context.split(separator: "/").first.map(String.init) ?? context
+                return CheckError(
+                    type: .auth,
+                    message: "SSO authorization required for \(org)",
+                    repoName: context,
+                    details: "This organization requires SSO. Open github.com/orgs/\(org)/sso in your browser to authorize, then try again."
                 )
             }
             return CheckError(
