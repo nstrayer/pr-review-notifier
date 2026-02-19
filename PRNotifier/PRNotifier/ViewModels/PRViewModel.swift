@@ -50,8 +50,9 @@ final class PRViewModel {
         if !activePRs.isEmpty {
             return "\(activePRs.count) \(activePRs.count == 1 ? "review" : "reviews")"
         }
-        if !authoredReceivedReview.isEmpty {
-            return "\(authoredReceivedReview.count) reviewed"
+        let reviewedCount = authoredReceivedReview.count
+        if reviewedCount > 0 {
+            return "\(reviewedCount) reviewed"
         }
         return "No reviews!"
     }
