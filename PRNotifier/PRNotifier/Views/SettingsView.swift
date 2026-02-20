@@ -16,6 +16,7 @@ struct SettingsView: View {
 
     @State private var errors: [String: String] = [:]
     @State private var showDevOptions = false
+    @State private var raycastInstallResult: RaycastInstallResult?
     @State private var didLoad = false
     @State private var showSaveConfirmation = false
     @State private var showOAuthSheet = false
@@ -108,6 +109,43 @@ struct SettingsView: View {
                 Text("Auto-launch")
             } footer: {
                 Text("Automatically start PR Notifier when you log in to your Mac.")
+            }
+
+            // Integrations
+            Section {
+                Button("Install Raycast Command") { installRaycastCommand() }
+
+                if let result = raycastInstallResult {
+                    switch result {
+                    case .success:
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label("Script installed", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text("To finish setup in Raycast:")
+                                .font(.caption).bold()
+                                .foregroundStyle(.secondary)
+                            Text("1. Press **Cmd+,** to open Preferences")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("2. Go to **Extensions**, click **+**, then **Add Script Directory**")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("3. Select **Documents > PR Notifier** and click Open")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    case .failure(let msg):
+                        Label(msg, systemImage: "xmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
+            } header: {
+                Text("Integrations")
+            } footer: {
+                if raycastInstallResult == nil {
+                    Text("Adds a Raycast command to open PR Notifier from anywhere.")
+                }
             }
 
             // Developer Options
@@ -384,6 +422,59 @@ struct SettingsView: View {
             showPATSection = false
         } catch {
             errors["token"] = "Failed to save token: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - Raycast
+
+    private enum RaycastInstallResult {
+        case success
+        case failure(String)
+    }
+
+    private func installRaycastCommand() {
+        let script = """
+        #!/bin/bash
+
+        # Required parameters:
+        # @raycast.schemaVersion 1
+        # @raycast.title Open PR Notifier
+        # @raycast.mode silent
+
+        # Optional parameters:
+        # @raycast.packageName PR Notifier
+
+        # Documentation:
+        # @raycast.description Opens the PR Notifier menu bar popover
+
+        open "prnotifier://open"
+        """
+
+        do {
+            let documents = FileManager.default.urls(
+                for: .documentDirectory, in: .userDomainMask
+            ).first!
+            let raycastDir = documents
+                .appendingPathComponent("PR Notifier", isDirectory: true)
+
+            try FileManager.default.createDirectory(
+                at: raycastDir, withIntermediateDirectories: true
+            )
+
+            let scriptURL = raycastDir.appendingPathComponent("open-pr-notifier.sh")
+            try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+
+            // Make executable (rwxr-xr-x)
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o755], ofItemAtPath: scriptURL.path
+            )
+
+            // Open Raycast so user is one Cmd+, away from preferences
+            NSWorkspace.shared.open(URL(string: "raycast://")!)
+
+            raycastInstallResult = .success
+        } catch {
+            raycastInstallResult = .failure("Failed: \(error.localizedDescription)")
         }
     }
 
