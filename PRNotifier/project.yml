@@ -17,6 +17,13 @@ targets:
     platform: macOS
     sources:
       - PRNotifier
+    info:
+      path: PRNotifier/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLName: "com.nickstrayer.prnotifier"
+            CFBundleURLSchemes:
+              - prnotifier
     settings:
       base:
         INFOPLIST_KEY_LSUIElement: true

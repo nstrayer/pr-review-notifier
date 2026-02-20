@@ -5,6 +5,7 @@ import SwiftUI
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
+    private var popoverPanel: NSPanel?
     private let viewModel = PRViewModel(settings: AppSettings())
 
     private lazy var settingsWindowController = SettingsWindowController(
@@ -93,8 +94,72 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if popover.isShown {
             popover.performClose(sender)
         } else {
-            popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
-            popover.contentViewController?.view.window?.makeKey()
+            showPopover()
+        }
+    }
+
+    private func showPopover() {
+        // Try normal popover if the status item is visible on screen
+        if let button = statusItem.button, button.window?.isVisible == true {
+            if !popover.isShown {
+                popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+                popover.contentViewController?.view.window?.makeKey()
+            }
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        // Fallback: show in a standalone floating panel
+        showPopoverPanel()
+    }
+
+    private func showPopoverPanel() {
+        popover.performClose(nil)
+
+        if let popoverPanel {
+            popoverPanel.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let hostingController = NSHostingController(
+            rootView: ContentView(onOpenSettings: { [weak self] in
+                self?.openSettings()
+            })
+            .environment(viewModel)
+            .environment(viewModel.settings)
+        )
+
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 500),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        panel.title = "PR Notifier"
+        panel.contentViewController = hostingController
+        panel.isFloatingPanel = true
+        panel.becomesKeyOnlyIfNeeded = false
+        panel.isReleasedWhenClosed = false
+        panel.setFrameAutosaveName("PopoverPanel")
+        panel.center()
+
+        self.popoverPanel = panel
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.first, url.scheme == "prnotifier" else { return }
+
+        switch url.host {
+        case "settings":
+            openSettings()
+        case "check":
+            showPopover()
+            Task { await viewModel.checkNow() }
+        default:
+            showPopover()
         }
     }
 
