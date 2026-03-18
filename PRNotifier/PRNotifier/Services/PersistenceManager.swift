@@ -13,6 +13,21 @@ actor PersistenceManager {
         var lastQueryTime: Date?
         var lastCheckHadErrors: Bool = false
         var lastCheckErrors: [CheckError] = []
+        var readyMergeNotifiedPRIDs: Set<Int> = []
+
+        init() {}
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            pendingPRs = try container.decodeIfPresent([PR].self, forKey: .pendingPRs) ?? []
+            authoredPRs = try container.decodeIfPresent([PR].self, forKey: .authoredPRs) ?? []
+            notifiedPRIDs = try container.decodeIfPresent(Set<Int>.self, forKey: .notifiedPRIDs) ?? []
+            dismissedPRIDs = try container.decodeIfPresent(Set<Int>.self, forKey: .dismissedPRIDs) ?? []
+            lastQueryTime = try container.decodeIfPresent(Date.self, forKey: .lastQueryTime)
+            lastCheckHadErrors = try container.decodeIfPresent(Bool.self, forKey: .lastCheckHadErrors) ?? false
+            lastCheckErrors = try container.decodeIfPresent([CheckError].self, forKey: .lastCheckErrors) ?? []
+            readyMergeNotifiedPRIDs = try container.decodeIfPresent(Set<Int>.self, forKey: .readyMergeNotifiedPRIDs) ?? []
+        }
     }
 
     private var cache: CacheData
@@ -79,6 +94,9 @@ actor PersistenceManager {
         cache.notifiedPRIDs.insert(id)
         save()
     }
+
+    func getReadyMergeNotifiedPRIDs() -> Set<Int> { cache.readyMergeNotifiedPRIDs }
+    func setReadyMergeNotifiedPRIDs(_ ids: Set<Int>) { cache.readyMergeNotifiedPRIDs = ids; save() }
 
     func update(_ block: (inout CacheData) -> Void) {
         block(&cache)
