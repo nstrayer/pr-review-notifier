@@ -294,7 +294,7 @@ If `ciInfo` is nil, has no checks, or has `overallStatus == .none`, show nothing
 The green border and "READY TO MERGE" badge apply wherever the PR card appears (Reviewed tab, Awaiting tab, or any other context where authored PRs are displayed). The styling is driven by `pr.isReadyToMerge` on the card itself, not the containing tab.
 
 PRs that are ready to merge get:
-- A green left border (3px) on the card
+- A green border overlay on the card (1.5px, rounded corners matching the card)
 - A "READY TO MERGE" badge/label at the top-right of the card
 
 ### New view: `CIStatusView`
@@ -364,4 +364,5 @@ Update `loadSamplePRs()` in `PRViewModel` to include `ciInfo` on sample authored
 | `ViewModels/PRViewModel.swift` | Add `readyToMergePRs`, update `menuBarTitle`, update `checkNow()` for ready-merge notifications, update sample PRs |
 | `Views/CIStatusView.swift` | New file: expandable CI status display with summary + per-check detail |
 | `Views/PRCardView.swift` | Integrate `CIStatusView`, add green border + "READY TO MERGE" badge for ready PRs |
-| `project.yml` | Add new source files |
+
+Note: `project.yml` uses `sources: - PRNotifier` which auto-includes all `.swift` files. No `project.yml` changes needed.
