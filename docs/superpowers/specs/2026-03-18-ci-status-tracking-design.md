@@ -10,7 +10,7 @@ Add CI status tracking for authored PRs. When an authored PR has at least one ap
 
 ## Data Model
 
-### New types in `Models/`
+### New types in `Models/CIInfo.swift`
 
 ```swift
 enum CheckRunStatus: String, Codable, Equatable {
@@ -34,7 +34,7 @@ struct CIInfo: Codable, Equatable {
 
 ### PR model changes
 
-Add `var ciInfo: CIInfo?` to the `PR` struct. Add corresponding `CodingKey`.
+Add `var ciInfo: CIInfo?` to the `PR` struct with a default of `nil`. Add corresponding `CodingKey`. Since `ciInfo` is optional with a default, the memberwise initializer remains backwards-compatible -- existing call sites do not need changes.
 
 ### Computed property on PR
 
@@ -55,10 +55,12 @@ For each authored PR, fetch the HEAD commit's check status using two endpoints:
 1. **Check Runs** (GitHub Actions, modern CI):
    `GET /repos/{owner}/{repo}/commits/{sha}/check-runs`
    - Returns individual check runs with `name`, `status` ("queued"/"in_progress"/"completed"), and `conclusion` ("success"/"failure"/"neutral"/"cancelled"/"skipped"/"timed_out"/"action_required")
+   - Paginated (default 30, max 100). Must paginate to handle repos with many checks (matrix builds, monorepos).
 
 2. **Combined Commit Status** (legacy CI -- CircleCI, Jenkins, etc.):
    `GET /repos/{owner}/{repo}/commits/{sha}/status`
    - Returns individual statuses with `context` (name) and `state` ("error"/"failure"/"pending"/"success")
+   - Returns all statuses in a single response (no pagination needed).
 
 ### Getting the HEAD SHA
 
@@ -79,9 +81,15 @@ private struct GitHubHead: Decodable {
 }
 ```
 
+The SHA is available on `ghPR.head.sha` inside the `checkForPRs` loop and does not need to be persisted on the `PR` model. It is only needed transiently to make the CI API calls.
+
 ### Scope
 
 CI status is fetched only for authored PRs to minimize API usage. This adds ~2 API calls per authored PR per poll cycle (check-runs + status).
+
+### Deduplication
+
+Check runs and commit statuses can overlap (same CI system posting to both). Deduplicate by name: if a check run and a commit status share the same name/context, keep the check run (it has richer data). Use case-insensitive name matching.
 
 ### Mapping to CheckRunInfo
 
@@ -98,23 +106,62 @@ CI status is fetched only for authored PRs to minimize API usage. This adds ~2 A
 - Any check `.pending` (and none failing): `.pending`
 - All checks `.passing`: `.passing`
 
+### Integration into checkForPRs
+
+The `fetchCIStatus` call happens inside the `for ghPR in openPRs` loop, in the `if isAuthor` block, after building review infos. The SHA comes from `ghPR.head.sha`:
+
+```swift
+if isAuthor {
+    let reviews: [GitHubReview] = // ... existing code ...
+    let reviewInfos = buildReviewInfos(reviews: reviews, requestedReviewers: reviewers.users)
+
+    // Fetch CI status -- fail silently, leave ciInfo as nil
+    let ciInfo: CIInfo?
+    do {
+        ciInfo = try await fetchCIStatus(
+            token: token, owner: owner, repo: repo, sha: ghPR.head.sha
+        )
+    } catch {
+        ciInfo = nil
+    }
+
+    let authoredPR = PR(
+        id: ghPR.id,
+        number: ghPR.number,
+        title: ghPR.title,
+        htmlURL: ghPR.htmlUrl,
+        repo: repoFullName,
+        authorLogin: ghPR.user?.login,
+        reviews: reviewInfos,
+        isAuthored: true,
+        ciInfo: ciInfo
+    )
+    authoredPRs.append(authoredPR)
+}
+```
+
+**Error handling:** If `fetchCIStatus` throws (network error, rate limit, etc.), `ciInfo` is set to `nil`. The PR card will show no CI information. This is intentional -- CI status is supplementary and should not block the core PR tracking functionality. Errors are not surfaced to the user's error banner.
+
 ### New GitHubService methods
 
 ```swift
-func fetchCIStatus(token: String, owner: String, repo: String, sha: String) async throws -> CIInfo
+private func fetchCIStatus(token: String, owner: String, repo: String, sha: String) async throws -> CIInfo
+private func fetchCheckRuns(token: String, owner: String, repo: String, sha: String) async throws -> [CheckRunInfo]
+private func fetchCommitStatuses(token: String, owner: String, repo: String, sha: String) async throws -> [CheckRunInfo]
 ```
 
-Called from within `checkForPRs` after building each authored PR. The `CIInfo` is set on the PR before appending to `authoredPRs`.
+`fetchCIStatus` calls `fetchCheckRuns` and `fetchCommitStatuses`, deduplicates, and derives `overallStatus`. `fetchCheckRuns` paginates (per_page=100, same pattern as existing `listReviews`).
 
 ## Menu Bar
 
 ### Priority order (highest first)
 
 1. Errors: `"!"`
-2. Ready to merge: `"N ready to merge"` (new)
-3. Reviews needed: `"N reviews"`
-4. PRs reviewed: `"N reviewed"`
-5. Nothing: `"No reviews!"`
+2. Not configured: `"Setup"`
+3. Ready to merge: `"N ready to merge"` (new)
+4. Reviews needed: `"N reviews"`
+5. PRs reviewed: `"N reviewed"`
+6. Nothing: `"No reviews!"`
 
 ### Implementation
 
@@ -151,7 +198,7 @@ var menuBarTitle: String {
 
 ### Trigger
 
-When an authored PR transitions to ready-to-merge (approved + CI passing) and hasn't been notified yet.
+When an authored PR transitions to ready-to-merge (approved + CI passing) and hasn't been notified yet. Uses the existing `enableNotifications` setting -- no separate toggle.
 
 ### Tracking
 
@@ -161,11 +208,36 @@ Add `readyMergeNotifiedPRIDs: Set<Int>` to `PersistenceManager`, following the s
 
 - Title: `"Ready to Merge: {repo}"`
 - Body: `"{PR title}"`
-- Clicking opens the PR on GitHub (same as existing notifications)
+- Clicking opens the PR on GitHub via `userInfo["url"]`
+- Sound: `.default`
 
-### Implementation
+### NotificationService method
 
-In `PRViewModel.checkNow()`, after fetching results:
+```swift
+func sendReadyToMergeNotification(pr: PR) async {
+    let content = UNMutableNotificationContent()
+    content.title = "Ready to Merge: \(pr.repo)"
+    content.body = pr.title
+    content.sound = .default
+    content.userInfo = ["url": pr.htmlURL]
+
+    let request = UNNotificationRequest(
+        identifier: "pr-ready-\(pr.id)",
+        content: content,
+        trigger: nil
+    )
+
+    do {
+        try await UNUserNotificationCenter.current().add(request)
+    } catch {
+        print("Failed to schedule ready-to-merge notification: \(error.localizedDescription)")
+    }
+}
+```
+
+### Stale ID cleanup
+
+Clean `readyMergeNotifiedPRIDs` against authored PR IDs (not `validPRIDs`, since authored PRs may not be in `validPRIDs` when the user is not also a reviewer):
 
 ```swift
 let readyMergeNotifiedIDs = await persistence.getReadyMergeNotifiedPRIDs()
@@ -177,11 +249,16 @@ if settings.enableNotifications && !newlyReady.isEmpty {
     }
 }
 
+let authoredPRIDs = Set(result.authoredPRs.map(\.id))
 let updatedReadyIDs = readyMergeNotifiedIDs
     .union(Set(newlyReady.map(\.id)))
-    .intersection(result.validPRIDs)  // clean stale
+    .intersection(authoredPRIDs)  // clean stale against authored PRs
 await persistence.setReadyMergeNotifiedPRIDs(updatedReadyIDs)
 ```
+
+### Re-notification behavior
+
+If a PR transitions from ready -> not ready (new commit resets CI) -> ready again, it will NOT be re-notified because its ID is already in `readyMergeNotifiedPRIDs`. This is intentional -- the user has already been alerted and can check the app for current status.
 
 ## PR Card UI
 
@@ -210,9 +287,11 @@ Sorted: failures first, then pending, then passing.
 
 #### No checks
 
-If `ciInfo` is nil or has no checks, show nothing (don't show "CI: no checks").
+If `ciInfo` is nil, has no checks, or has `overallStatus == .none`, show nothing.
 
-### Ready to Merge highlight (Reviewed tab)
+### Ready to Merge highlight
+
+The green border and "READY TO MERGE" badge apply wherever the PR card appears (Reviewed tab, Awaiting tab, or any other context where authored PRs are displayed). The styling is driven by `pr.isReadyToMerge` on the card itself, not the containing tab.
 
 PRs that are ready to merge get:
 - A green left border (3px) on the card
@@ -220,7 +299,7 @@ PRs that are ready to merge get:
 
 ### New view: `CIStatusView`
 
-A new SwiftUI view in `Views/` that handles the summary line, disclosure toggle, and individual check list. Used by `PRCardView` when `showReviewStatus` is true and `ciInfo` is non-nil.
+A new SwiftUI view in `Views/` that handles the summary line, disclosure toggle, and individual check list. Used by `PRCardView` when `showReviewStatus` is true and `ciInfo` is non-nil with at least one check.
 
 ## Persistence
 
@@ -228,9 +307,19 @@ A new SwiftUI view in `Views/` that handles the summary line, disclosure toggle,
 
 `ciInfo` is already part of the `PR` struct, so it gets cached automatically when `authoredPRs` are persisted via `PersistenceManager.setAuthoredPRs()`.
 
+### Cache backwards compatibility
+
+The new `readyMergeNotifiedPRIDs` field on `CacheData` uses a default value of `[]`. Swift's `Codable` handles missing keys gracefully when defaults are provided, so existing cache files will decode correctly without data loss.
+
 ### New persisted set
 
-`readyMergeNotifiedPRIDs: Set<Int>` -- tracks which PRs have already triggered a ready-to-merge notification. Follows the same file-based JSON pattern as `notifiedPRIDs` and `dismissedPRIDs`.
+`readyMergeNotifiedPRIDs: Set<Int> = []` -- tracks which PRs have already triggered a ready-to-merge notification. Follows the same file-based JSON pattern as `notifiedPRIDs` and `dismissedPRIDs`.
+
+Add corresponding getter/setter:
+```swift
+func getReadyMergeNotifiedPRIDs() -> Set<Int> { cache.readyMergeNotifiedPRIDs }
+func setReadyMergeNotifiedPRIDs(_ ids: Set<Int>) { cache.readyMergeNotifiedPRIDs = ids; save() }
+```
 
 ## Sample PRs
 
@@ -239,16 +328,22 @@ Update `loadSamplePRs()` in `PRViewModel` to include `ciInfo` on sample authored
 - One PR with a failing check + changes requested
 - One PR with no checks + no reviews
 
+## Known Limitations
+
+- **Not GitHub's "ready to merge":** This feature checks for at least one approval + all CI passing. It does not account for branch protection rules (required reviewer count, required specific checks, merge conflicts). A PR may show as "ready to merge" here but still be blocked on GitHub.
+- **Stale CI between polls:** CI status reflects the HEAD SHA at last poll time. If a new commit is pushed between polls, the cached status is for the old commit until the next poll cycle. This is consistent with how the rest of the app works.
+- **No concurrent CI fetches:** CI status is fetched sequentially per authored PR within the existing `for ghPR in openPRs` loop. For users with many authored PRs, this could be optimized with `TaskGroup` in a future iteration.
+
 ## Files Changed
 
 | File | Change |
 |------|--------|
 | `Models/CIInfo.swift` | New file: `CheckRunStatus`, `CIStatus`, `CheckRunInfo`, `CIInfo` |
-| `Models/PR.swift` | Add `ciInfo: CIInfo?`, `isReadyToMerge` computed property |
-| `Services/GitHubService.swift` | Add `fetchCIStatus()`, new Decodable structs (`GitHubHead`, `GitHubCheckRunsResponse`, `GitHubCombinedStatus`), call from `checkForPRs` for authored PRs |
+| `Models/PR.swift` | Add `ciInfo: CIInfo?` (default nil), `isReadyToMerge` computed property |
+| `Services/GitHubService.swift` | Add `fetchCIStatus()`, `fetchCheckRuns()`, `fetchCommitStatuses()`, new Decodable structs (`GitHubHead`, `GitHubCheckRun`, `GitHubCheckRunsResponse`, `GitHubCombinedStatus`, `GitHubCommitStatus`), call from `checkForPRs` for authored PRs, add deduplication logic |
 | `Services/NotificationService.swift` | Add `sendReadyToMergeNotification(pr:)` |
-| `Services/PersistenceManager.swift` | Add `readyMergeNotifiedPRIDs` get/set |
+| `Services/PersistenceManager.swift` | Add `readyMergeNotifiedPRIDs` to `CacheData`, add get/set methods |
 | `ViewModels/PRViewModel.swift` | Add `readyToMergePRs`, update `menuBarTitle`, update `checkNow()` for ready-merge notifications, update sample PRs |
-| `Views/CIStatusView.swift` | New file: expandable CI status display |
-| `Views/PRCardView.swift` | Integrate `CIStatusView`, add green border for ready-to-merge PRs |
+| `Views/CIStatusView.swift` | New file: expandable CI status display with summary + per-check detail |
+| `Views/PRCardView.swift` | Integrate `CIStatusView`, add green border + "READY TO MERGE" badge for ready PRs |
 | `project.yml` | Add new source files |
