@@ -9,6 +9,24 @@ struct PRCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if pr.isReadyToMerge {
+                HStack {
+                    Spacer()
+                    Text("READY TO MERGE")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.green.opacity(0.15))
+                        .foregroundStyle(Color(red: 0.13, green: 0.53, blue: 0.13))
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(Color.green.opacity(0.3), lineWidth: 0.5)
+                        )
+                }
+            }
+
             // Title
             Button {
                 openPR()
@@ -67,6 +85,13 @@ struct PRCardView: View {
                 }
             }
 
+            // CI status (authored PRs with checks)
+            if showReviewStatus,
+               let ciInfo = pr.ciInfo,
+               !ciInfo.checks.isEmpty {
+                CIStatusView(ciInfo: ciInfo)
+            }
+
             // Action buttons
             HStack(spacing: 8) {
                 Button {
@@ -109,6 +134,12 @@ struct PRCardView: View {
         .padding(12)
         .background(isDismissed ? Color.gray.opacity(0.04) : Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            if pr.isReadyToMerge {
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(Color.green.opacity(0.4), lineWidth: 1.5)
+            }
+        }
         .shadow(color: .black.opacity(0.06), radius: 2, y: 1)
         .padding(.horizontal, 12)
     }
