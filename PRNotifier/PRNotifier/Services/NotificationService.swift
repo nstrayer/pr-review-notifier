@@ -66,6 +66,26 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
+    func sendReadyToMergeNotification(pr: PR) async {
+        let content = UNMutableNotificationContent()
+        content.title = "Ready to Merge: \(pr.repo)"
+        content.body = pr.title
+        content.sound = .default
+        content.userInfo = ["url": pr.htmlURL]
+
+        let request = UNNotificationRequest(
+            identifier: "pr-ready-\(pr.id)",
+            content: content,
+            trigger: nil
+        )
+
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("Failed to schedule ready-to-merge notification: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - UNUserNotificationCenterDelegate
 
     nonisolated func userNotificationCenter(
