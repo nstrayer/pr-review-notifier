@@ -309,7 +309,25 @@ A new SwiftUI view in `Views/` that handles the summary line, disclosure toggle,
 
 ### Cache backwards compatibility
 
-The new `readyMergeNotifiedPRIDs` field on `CacheData` uses a default value of `[]`. Swift's `Codable` handles missing keys gracefully when defaults are provided, so existing cache files will decode correctly without data loss.
+Swift's synthesized `Decodable` does NOT use property defaults for missing keys -- it throws `keyNotFound` even when a default is provided. The existing code falls back to `CacheData()` on decode failure, which would wipe all cached state (dismissed PRs, notification tracking, etc.) on upgrade.
+
+To avoid this, add a custom `init(from:)` to `CacheData` that uses `decodeIfPresent` with a fallback for the new field:
+
+```swift
+init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    pendingPRs = try container.decodeIfPresent([PR].self, forKey: .pendingPRs) ?? []
+    authoredPRs = try container.decodeIfPresent([PR].self, forKey: .authoredPRs) ?? []
+    notifiedPRIDs = try container.decodeIfPresent(Set<Int>.self, forKey: .notifiedPRIDs) ?? []
+    dismissedPRIDs = try container.decodeIfPresent(Set<Int>.self, forKey: .dismissedPRIDs) ?? []
+    lastQueryTime = try container.decodeIfPresent(Date.self, forKey: .lastQueryTime)
+    lastCheckHadErrors = try container.decodeIfPresent(Bool.self, forKey: .lastCheckHadErrors) ?? false
+    lastCheckErrors = try container.decodeIfPresent([CheckError].self, forKey: .lastCheckErrors) ?? []
+    readyMergeNotifiedPRIDs = try container.decodeIfPresent(Set<Int>.self, forKey: .readyMergeNotifiedPRIDs) ?? []
+}
+```
+
+This makes ALL fields resilient to missing keys, not just the new one. This also retroactively fixes the same latent issue for any future field additions.
 
 ### New persisted set
 
