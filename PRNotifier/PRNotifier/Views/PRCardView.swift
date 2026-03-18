@@ -9,7 +9,7 @@ struct PRCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if pr.isReadyToMerge {
+            if showReviewStatus && pr.isReadyToMerge {
                 HStack {
                     Spacer()
                     Text("READY TO MERGE")
@@ -135,7 +135,7 @@ struct PRCardView: View {
         .background(isDismissed ? Color.gray.opacity(0.04) : Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay {
-            if pr.isReadyToMerge {
+            if showReviewStatus && pr.isReadyToMerge {
                 RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(Color.green.opacity(0.4), lineWidth: 1.5)
             }

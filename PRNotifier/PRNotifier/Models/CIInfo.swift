@@ -1,11 +1,25 @@
 import Foundation
 
-enum CheckRunStatus: String, Codable, Equatable {
+enum CheckRunStatus: String, Equatable {
     case passing, failing, pending
 }
 
-enum CIStatus: String, Codable, Equatable {
+extension CheckRunStatus: Codable {
+    init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer().decode(String.self)
+        self = CheckRunStatus(rawValue: value) ?? .pending
+    }
+}
+
+enum CIStatus: String, Equatable {
     case passing, failing, pending, none
+}
+
+extension CIStatus: Codable {
+    init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer().decode(String.self)
+        self = CIStatus(rawValue: value) ?? .none
+    }
 }
 
 struct CheckRunInfo: Codable, Equatable {

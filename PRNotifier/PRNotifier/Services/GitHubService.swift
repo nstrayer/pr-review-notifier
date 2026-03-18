@@ -313,8 +313,9 @@ struct GitHubService {
     private func fetchCIStatus(
         token: String, owner: String, repo: String, sha: String
     ) async throws -> CIInfo {
-        let checkRuns = try await fetchCheckRuns(token: token, owner: owner, repo: repo, sha: sha)
-        let commitStatuses = try await fetchCommitStatuses(token: token, owner: owner, repo: repo, sha: sha)
+        // Fetch both independently so a failure in one doesn't lose the other
+        let checkRuns = (try? await fetchCheckRuns(token: token, owner: owner, repo: repo, sha: sha)) ?? []
+        let commitStatuses = (try? await fetchCommitStatuses(token: token, owner: owner, repo: repo, sha: sha)) ?? []
 
         // Deduplicate: check runs take priority over commit statuses (richer data)
         var checksByName: [String: CheckRunInfo] = [:]
