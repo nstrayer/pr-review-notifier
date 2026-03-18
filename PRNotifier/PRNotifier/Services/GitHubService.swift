@@ -12,12 +12,36 @@ private struct GitHubUser: Decodable {
     let name: String?
 }
 
+private struct GitHubHead: Decodable {
+    let sha: String
+}
+
+private struct GitHubCheckRun: Decodable {
+    let name: String
+    let status: String      // "queued", "in_progress", "completed"
+    let conclusion: String? // "success", "failure", etc.
+}
+
+private struct GitHubCheckRunsResponse: Decodable {
+    let checkRuns: [GitHubCheckRun]
+}
+
+private struct GitHubCommitStatus: Decodable {
+    let context: String
+    let state: String // "error", "failure", "pending", "success"
+}
+
+private struct GitHubCombinedStatus: Decodable {
+    let statuses: [GitHubCommitStatus]
+}
+
 private struct GitHubPullRequest: Decodable {
     let id: Int
     let number: Int
     let title: String
     let htmlUrl: String
     let user: GitHubUser?
+    let head: GitHubHead
 }
 
 private struct ReviewersResponse: Decodable {
@@ -132,6 +156,16 @@ struct GitHubService {
                         requestedReviewers: reviewers.users
                     )
 
+                    // Fetch CI status -- fail silently, leave ciInfo as nil
+                    let ciInfo: CIInfo?
+                    do {
+                        ciInfo = try await fetchCIStatus(
+                            token: token, owner: owner, repo: repo, sha: ghPR.head.sha
+                        )
+                    } catch {
+                        ciInfo = nil
+                    }
+
                     let authoredPR = PR(
                         id: ghPR.id,
                         number: ghPR.number,
@@ -140,7 +174,8 @@ struct GitHubService {
                         repo: repoFullName,
                         authorLogin: ghPR.user?.login,
                         reviews: reviewInfos,
-                        isAuthored: true
+                        isAuthored: true,
+                        ciInfo: ciInfo
                     )
                     authoredPRs.append(authoredPR)
                 }
@@ -217,6 +252,96 @@ struct GitHubService {
         }
 
         return allReviews
+    }
+
+    private func fetchCheckRuns(
+        token: String, owner: String, repo: String, sha: String
+    ) async throws -> [CheckRunInfo] {
+        var allRuns: [GitHubCheckRun] = []
+        var page = 1
+        let maxPages = 20
+
+        while page <= maxPages {
+            let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/commits/\(sha)/check-runs?per_page=100&page=\(page)")!
+            let data = try await request(url: url, token: token)
+            let response = try Self.snakeCaseDecoder.decode(GitHubCheckRunsResponse.self, from: data)
+            allRuns.append(contentsOf: response.checkRuns)
+
+            if response.checkRuns.count < 100 { break }
+            page += 1
+        }
+
+        return allRuns.map { run in
+            let status: CheckRunStatus
+            if run.status != "completed" {
+                status = .pending
+            } else {
+                switch run.conclusion {
+                case "success", "neutral", "skipped":
+                    status = .passing
+                case "failure", "cancelled", "timed_out", "action_required":
+                    status = .failing
+                default:
+                    status = .pending
+                }
+            }
+            return CheckRunInfo(name: run.name, status: status)
+        }
+    }
+
+    private func fetchCommitStatuses(
+        token: String, owner: String, repo: String, sha: String
+    ) async throws -> [CheckRunInfo] {
+        let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/commits/\(sha)/status")!
+        let data = try await request(url: url, token: token)
+        let response = try Self.snakeCaseDecoder.decode(GitHubCombinedStatus.self, from: data)
+
+        return response.statuses.map { s in
+            let status: CheckRunStatus
+            switch s.state {
+            case "success":
+                status = .passing
+            case "failure", "error":
+                status = .failing
+            default:
+                status = .pending
+            }
+            return CheckRunInfo(name: s.context, status: status)
+        }
+    }
+
+    private func fetchCIStatus(
+        token: String, owner: String, repo: String, sha: String
+    ) async throws -> CIInfo {
+        let checkRuns = try await fetchCheckRuns(token: token, owner: owner, repo: repo, sha: sha)
+        let commitStatuses = try await fetchCommitStatuses(token: token, owner: owner, repo: repo, sha: sha)
+
+        // Deduplicate: check runs take priority over commit statuses (richer data)
+        var checksByName: [String: CheckRunInfo] = [:]
+        for run in checkRuns {
+            checksByName[run.name.lowercased()] = run
+        }
+        for status in commitStatuses {
+            let key = status.name.lowercased()
+            if checksByName[key] == nil {
+                checksByName[key] = status
+            }
+        }
+
+        let checks = Array(checksByName.values)
+
+        let overallStatus: CIStatus
+        if checks.isEmpty {
+            overallStatus = .none
+        } else if checks.contains(where: { $0.status == .failing }) {
+            overallStatus = .failing
+        } else if checks.contains(where: { $0.status == .pending }) {
+            overallStatus = .pending
+        } else {
+            overallStatus = .passing
+        }
+
+        return CIInfo(checks: checks, overallStatus: overallStatus)
     }
 
     // MARK: - HTTP
