@@ -44,9 +44,17 @@ final class PRViewModel {
         }
     }
 
+    var readyToMergePRs: [PR] {
+        authoredPRs.filter { $0.isReadyToMerge }
+    }
+
     var menuBarTitle: String {
         if hasErrors { return "!" }
         if !settings.isConfigured && !settings.devShowSamplePRs { return "Setup" }
+        let readyCount = readyToMergePRs.count
+        if readyCount > 0 {
+            return "\(readyCount) ready to merge"
+        }
         if !activePRs.isEmpty {
             return "\(activePRs.count) \(activePRs.count == 1 ? "review" : "reviews")"
         }
@@ -194,6 +202,22 @@ final class PRViewModel {
             let updatedNotifiedIDs = notifiedIDs.union(Set(newPRs.map(\.id)))
                 .intersection(result.validPRIDs)
             await persistence.setNotifiedPRIDs(updatedNotifiedIDs)
+
+            // Send ready-to-merge notifications
+            let readyMergeNotifiedIDs = await persistence.getReadyMergeNotifiedPRIDs()
+            let newlyReady = readyToMergePRs.filter { !readyMergeNotifiedIDs.contains($0.id) }
+
+            if settings.enableNotifications && !newlyReady.isEmpty {
+                for pr in newlyReady {
+                    await NotificationService.shared.sendReadyToMergeNotification(pr: pr)
+                }
+            }
+
+            let authoredPRIDs = Set(result.authoredPRs.map(\.id))
+            let updatedReadyIDs = readyMergeNotifiedIDs
+                .union(Set(newlyReady.map(\.id)))
+                .intersection(authoredPRIDs)
+            await persistence.setReadyMergeNotifiedPRIDs(updatedReadyIDs)
         } catch {
             let checkError = CheckError(
                 type: .unknown,
@@ -260,12 +284,20 @@ final class PRViewModel {
                authorLogin: "you", reviews: [
                    ReviewInfo(reviewerLogin: "reviewer1", reviewerName: "Alice Smith", state: .approved),
                    ReviewInfo(reviewerLogin: "reviewer2", reviewerName: "Bob Johnson", state: .pending),
-               ], isAuthored: true),
+               ], isAuthored: true, ciInfo: CIInfo(checks: [
+                   CheckRunInfo(name: "build", status: .passing),
+                   CheckRunInfo(name: "test-suite", status: .passing),
+                   CheckRunInfo(name: "lint", status: .passing),
+               ], overallStatus: .passing)),
             PR(id: 9876543221, number: 302, title: "[SAMPLE-AUTHORED] Fix navigation bug",
                htmlURL: "https://github.com/sample/repo/pull/302", repo: "another/project",
                authorLogin: "you", reviews: [
                    ReviewInfo(reviewerLogin: "reviewer3", reviewerName: "Charlie Davis", state: .changesRequested),
-               ], isAuthored: true),
+               ], isAuthored: true, ciInfo: CIInfo(checks: [
+                   CheckRunInfo(name: "build", status: .passing),
+                   CheckRunInfo(name: "test-suite", status: .failing),
+                   CheckRunInfo(name: "lint", status: .passing),
+               ], overallStatus: .failing)),
             PR(id: 9876543222, number: 303, title: "[SAMPLE-AUTHORED] Add API documentation",
                htmlURL: "https://github.com/sample/repo/pull/303", repo: "docs/documentation",
                authorLogin: "you", reviews: [], isAuthored: true),
