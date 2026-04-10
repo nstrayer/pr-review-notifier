@@ -497,13 +497,12 @@ struct GitHubService {
         // Process reviews -- latest review wins (API returns chronological order)
         for review in reviews {
             guard let user = review.user else { continue }
-            // Skip COMMENTED state per Electron logic
-            guard review.state != "COMMENTED" else { continue }
 
             let state: ReviewState
             switch review.state {
             case "APPROVED": state = .approved
             case "CHANGES_REQUESTED": state = .changesRequested
+            case "COMMENTED": state = .commented
             default: state = .pending
             }
 
