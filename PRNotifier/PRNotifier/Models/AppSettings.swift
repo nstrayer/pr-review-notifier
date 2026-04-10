@@ -90,26 +90,38 @@ final class AppSettings {
         return true
     }
 
+    /// Returns the color for a repo without mutating state. Safe to call from view body.
     func colorForRepo(_ repo: String) -> RepoColor {
         if let existing = repoColors[repo] {
             return existing
         }
-
+        // Deterministic fallback: first unused palette color
         let usedColors = Set(repoColors.values)
-        let assigned = RepoColor.allCases.first { !usedColors.contains($0) }
+        return RepoColor.allCases.first { !usedColors.contains($0) }
             ?? RepoColor.allCases[repoColors.count % RepoColor.allCases.count]
+    }
 
-        repoColors[repo] = assigned
-        return assigned
+    /// Assigns and persists a color for a repo. Call at mutation points (addRepo, init).
+    @discardableResult
+    func assignColorForRepo(_ repo: String) -> RepoColor {
+        if let existing = repoColors[repo] {
+            return existing
+        }
+        let color = colorForRepo(repo)
+        repoColors[repo] = color
+        return color
     }
 
     init() {
         // Load stored values (must set all stored properties before didSet can fire)
+        let loadedRepos: [String]
         if let data = defaults.data(forKey: Keys.repos),
            let decoded = try? JSONDecoder().decode([String].self, from: data) {
             self.repos = decoded
+            loadedRepos = decoded
         } else {
             self.repos = []
+            loadedRepos = []
         }
         self.username = defaults.string(forKey: Keys.username) ?? ""
         let interval = defaults.integer(forKey: Keys.checkInterval)
@@ -121,7 +133,9 @@ final class AppSettings {
         self.oauthUsername = defaults.string(forKey: Keys.oauthUsername) ?? ""
         if let data = defaults.data(forKey: Keys.repoColors),
            let decoded = try? JSONDecoder().decode([String: RepoColor].self, from: data) {
-            self.repoColors = decoded
+            // Filter stale entries and keep only configured repos
+            let repoSet = Set(loadedRepos)
+            self.repoColors = decoded.filter { repoSet.contains($0.key) }
         } else {
             self.repoColors = [:]
         }
@@ -147,6 +161,11 @@ final class AppSettings {
             }
         } else {
             self.authMethod = .oauth
+        }
+
+        // Eagerly assign colors for any repos that don't have one yet
+        for repo in loadedRepos {
+            assignColorForRepo(repo)
         }
     }
 }

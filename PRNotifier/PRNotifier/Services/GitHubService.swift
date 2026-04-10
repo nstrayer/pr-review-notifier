@@ -494,7 +494,8 @@ struct GitHubService {
     ) -> [ReviewInfo] {
         var reviewerMap: [String: ReviewInfo] = [:]
 
-        // Process reviews -- latest review wins (API returns chronological order)
+        // Process reviews -- latest review wins, except COMMENTED never
+        // overrides a decisive state (APPROVED/CHANGES_REQUESTED).
         for review in reviews {
             guard let user = review.user else { continue }
 
@@ -504,6 +505,13 @@ struct GitHubService {
             case "CHANGES_REQUESTED": state = .changesRequested
             case "COMMENTED": state = .commented
             default: state = .pending
+            }
+
+            // Don't let a comment downgrade an approval or change-request
+            if state == .commented,
+               let existing = reviewerMap[user.login],
+               existing.state == .approved || existing.state == .changesRequested {
+                continue
             }
 
             reviewerMap[user.login] = ReviewInfo(
