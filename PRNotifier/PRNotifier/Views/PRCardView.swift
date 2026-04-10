@@ -58,7 +58,7 @@ struct PRCardView: View {
                     .foregroundStyle(isDismissed ? Color.secondary : Color.accentColor)
                     .clipShape(Capsule())
 
-                Text("#\(pr.number)")
+                Text(verbatim: "#\(pr.number)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
