@@ -7,6 +7,8 @@ struct PRCardView: View {
     var onDismiss: (() -> Void)?
     var onRestore: (() -> Void)?
 
+    @Environment(AppSettings.self) private var settings
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if showReviewStatus && pr.isReadyToMerge {
@@ -48,17 +50,18 @@ struct PRCardView: View {
             }
 
             // Repo badge + PR number
+            let repoColor = settings.colorForRepo(pr.repo).swiftUIColor
             HStack(spacing: 6) {
                 Text(pr.repo)
                     .font(.caption)
                     .fontWeight(.medium)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(isDismissed ? Color.gray.opacity(0.1) : Color.accentColor.opacity(0.1))
-                    .foregroundStyle(isDismissed ? Color.secondary : Color.accentColor)
+                    .background(isDismissed ? Color.gray.opacity(0.1) : repoColor.opacity(0.1))
+                    .foregroundStyle(isDismissed ? Color.secondary : repoColor)
                     .clipShape(Capsule())
 
-                Text("#\(pr.number)")
+                Text(verbatim: "#\(pr.number)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 

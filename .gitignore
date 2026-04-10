@@ -19,3 +19,6 @@ Package.resolved
 
 # Environment
 .env
+
+# Superpowers
+.superpowers/

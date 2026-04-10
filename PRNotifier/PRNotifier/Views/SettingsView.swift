@@ -21,6 +21,7 @@ struct SettingsView: View {
     @State private var showSaveConfirmation = false
     @State private var showOAuthSheet = false
     @State private var showPATSection = false
+    @State private var colorPickerRepo: String?
 
     var body: some View {
         Form {
@@ -51,7 +52,24 @@ struct SettingsView: View {
                     Text(error).font(.caption).foregroundStyle(.red)
                 }
                 ForEach(repos, id: \.self) { repo in
-                    HStack {
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(settings.colorForRepo(repo).swiftUIColor)
+                            .frame(width: 20, height: 20)
+                            .overlay(
+                                Circle()
+                                    .strokeBorder(Color.primary.opacity(0.15), lineWidth: 1)
+                            )
+                            .onTapGesture {
+                                colorPickerRepo = colorPickerRepo == repo ? nil : repo
+                            }
+                            .popover(isPresented: Binding(
+                                get: { colorPickerRepo == repo },
+                                set: { if !$0 { colorPickerRepo = nil } }
+                            )) {
+                                repoColorPicker(for: repo)
+                            }
+
                         Text(repo)
                             .font(.body)
                         Spacer()
@@ -328,6 +346,7 @@ struct SettingsView: View {
         }
 
         repos.append(trimmed)
+        settings.assignColorForRepo(trimmed)
         newRepo = ""
     }
 
@@ -476,6 +495,31 @@ struct SettingsView: View {
         } catch {
             raycastInstallResult = .failure("Failed: \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - Color Picker
+
+    private func repoColorPicker(for repo: String) -> some View {
+        let columns = Array(repeating: GridItem(.fixed(28), spacing: 8), count: 4)
+
+        return LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(RepoColor.allCases, id: \.self) { color in
+                Circle()
+                    .fill(color.swiftUIColor)
+                    .frame(width: 28, height: 28)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(Color.primary.opacity(
+                                settings.repoColors[repo] == color ? 0.6 : 0.15
+                            ), lineWidth: settings.repoColors[repo] == color ? 2 : 1)
+                    )
+                    .onTapGesture {
+                        settings.repoColors[repo] = color
+                        colorPickerRepo = nil
+                    }
+            }
+        }
+        .padding(12)
     }
 
     // MARK: - Auto-launch
