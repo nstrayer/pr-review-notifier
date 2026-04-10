@@ -19,6 +19,7 @@ final class AppSettings {
         static let devShowSamplePRs = "devShowSamplePRs"
         static let authMethod = "authMethod"
         static let oauthUsername = "oauthUsername"
+        static let repoColors = "repoColors"
     }
 
     var repos: [String] {
@@ -26,6 +27,9 @@ final class AppSettings {
             if let data = try? JSONEncoder().encode(repos) {
                 defaults.set(data, forKey: Keys.repos)
             }
+            // Remove color entries for repos no longer in the list
+            let repoSet = Set(repos)
+            repoColors = repoColors.filter { repoSet.contains($0.key) }
         }
     }
 
@@ -61,6 +65,14 @@ final class AppSettings {
         didSet { defaults.set(oauthUsername, forKey: Keys.oauthUsername) }
     }
 
+    var repoColors: [String: RepoColor] {
+        didSet {
+            if let data = try? JSONEncoder().encode(repoColors) {
+                defaults.set(data, forKey: Keys.repoColors)
+            }
+        }
+    }
+
     /// The effective username -- OAuth auto-populates, PAT requires manual entry.
     var effectiveUsername: String {
         switch authMethod {
@@ -76,6 +88,19 @@ final class AppSettings {
             return false
         }
         return true
+    }
+
+    func colorForRepo(_ repo: String) -> RepoColor {
+        if let existing = repoColors[repo] {
+            return existing
+        }
+
+        let usedColors = Set(repoColors.values)
+        let assigned = RepoColor.allCases.first { !usedColors.contains($0) }
+            ?? RepoColor.allCases[repoColors.count % RepoColor.allCases.count]
+
+        repoColors[repo] = assigned
+        return assigned
     }
 
     init() {
@@ -94,6 +119,12 @@ final class AppSettings {
         self.settingsPrompted = defaults.bool(forKey: Keys.settingsPrompted)
         self.devShowSamplePRs = defaults.bool(forKey: Keys.devShowSamplePRs)
         self.oauthUsername = defaults.string(forKey: Keys.oauthUsername) ?? ""
+        if let data = defaults.data(forKey: Keys.repoColors),
+           let decoded = try? JSONDecoder().decode([String: RepoColor].self, from: data) {
+            self.repoColors = decoded
+        } else {
+            self.repoColors = [:]
+        }
 
         // Determine auth method: check stored preference, then infer from existing tokens.
         // Only probe the keychain for legacy migration (user has config but no stored
