@@ -346,6 +346,7 @@ struct SettingsView: View {
         }
 
         repos.append(trimmed)
+        _ = settings.colorForRepo(trimmed)
         newRepo = ""
     }
 

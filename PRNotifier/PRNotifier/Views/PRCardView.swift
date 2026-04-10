@@ -50,14 +50,15 @@ struct PRCardView: View {
             }
 
             // Repo badge + PR number
+            let repoColor = settings.colorForRepo(pr.repo).swiftUIColor
             HStack(spacing: 6) {
                 Text(pr.repo)
                     .font(.caption)
                     .fontWeight(.medium)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(isDismissed ? Color.gray.opacity(0.1) : settings.colorForRepo(pr.repo).swiftUIColor.opacity(0.1))
-                    .foregroundStyle(isDismissed ? Color.secondary : settings.colorForRepo(pr.repo).swiftUIColor)
+                    .background(isDismissed ? Color.gray.opacity(0.1) : repoColor.opacity(0.1))
+                    .foregroundStyle(isDismissed ? Color.secondary : repoColor)
                     .clipShape(Capsule())
 
                 Text(verbatim: "#\(pr.number)")
