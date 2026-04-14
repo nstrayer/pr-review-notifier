@@ -8,7 +8,7 @@ struct PRCardView: View {
     var onRestore: (() -> Void)?
 
     @Environment(AppSettings.self) private var settings
-    @State private var showCopied = false
+    @State private var copiedFeedback: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -63,18 +63,25 @@ struct PRCardView: View {
                     .clipShape(Capsule())
 
                 Button {
+                    let isShift = NSEvent.modifierFlags.contains(.shift)
                     NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString("\(pr.number)", forType: .string)
-                    showCopied = true
+                    if isShift {
+                        NSPasteboard.general.setString(pr.htmlURL, forType: .string)
+                        copiedFeedback = "Link copied!"
+                    } else {
+                        NSPasteboard.general.setString("\(pr.number)", forType: .string)
+                        copiedFeedback = "Copied!"
+                    }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        showCopied = false
+                        copiedFeedback = nil
                     }
                 } label: {
-                    Text(verbatim: showCopied ? "Copied!" : "#\(pr.number)")
+                    Text(verbatim: copiedFeedback ?? "#\(pr.number)")
                         .font(.caption)
-                        .foregroundStyle(showCopied ? .green : .secondary)
+                        .foregroundStyle(copiedFeedback != nil ? .green : .secondary)
                 }
                 .buttonStyle(.plain)
+                .help("Click to copy #. Shift-click to copy link.")
                 .onHover { hovering in
                     if hovering {
                         NSCursor.pointingHand.push()
