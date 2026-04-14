@@ -8,6 +8,7 @@ struct PRCardView: View {
     var onRestore: (() -> Void)?
 
     @Environment(AppSettings.self) private var settings
+    @State private var showCopied = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -61,9 +62,26 @@ struct PRCardView: View {
                     .foregroundStyle(isDismissed ? Color.secondary : repoColor)
                     .clipShape(Capsule())
 
-                Text(verbatim: "#\(pr.number)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString("\(pr.number)", forType: .string)
+                    showCopied = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        showCopied = false
+                    }
+                } label: {
+                    Text(verbatim: showCopied ? "Copied!" : "#\(pr.number)")
+                        .font(.caption)
+                        .foregroundStyle(showCopied ? .green : .secondary)
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    if hovering {
+                        NSCursor.pointingHand.push()
+                    } else {
+                        NSCursor.pop()
+                    }
+                }
 
                 if !showReviewStatus, let author = pr.authorLogin {
                     Text("by \(author)")
