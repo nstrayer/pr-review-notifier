@@ -316,36 +316,9 @@ struct GitHubService {
     private func fetchCIStatus(
         token: String, owner: String, repo: String, sha: String
     ) async throws -> CIInfo {
-        // Fetch both independently so a failure in one doesn't lose the other
         let checkRuns = (try? await fetchCheckRuns(token: token, owner: owner, repo: repo, sha: sha)) ?? []
         let commitStatuses = (try? await fetchCommitStatuses(token: token, owner: owner, repo: repo, sha: sha)) ?? []
-
-        // Deduplicate: check runs take priority over commit statuses (richer data)
-        var checksByName: [String: CheckRunInfo] = [:]
-        for run in checkRuns {
-            checksByName[run.name.lowercased()] = run
-        }
-        for status in commitStatuses {
-            let key = status.name.lowercased()
-            if checksByName[key] == nil {
-                checksByName[key] = status
-            }
-        }
-
-        let checks = Array(checksByName.values)
-
-        let overallStatus: CIStatus
-        if checks.isEmpty {
-            overallStatus = .none
-        } else if checks.contains(where: { $0.status == .failing }) {
-            overallStatus = .failing
-        } else if checks.contains(where: { $0.status == .pending }) {
-            overallStatus = .pending
-        } else {
-            overallStatus = .passing
-        }
-
-        return CIInfo(checks: checks, overallStatus: overallStatus)
+        return CIStatusAggregator.aggregate(checkRuns: checkRuns, commitStatuses: commitStatuses)
     }
 
     // MARK: - HTTP
@@ -489,51 +462,16 @@ struct GitHubService {
         }
     }
 
-    // MARK: - Review processing (matches github.ts:440-464)
-
     private func buildReviewInfos(
         reviews: [GitHubReview],
         requestedReviewers: [GitHubUser]
     ) -> [ReviewInfo] {
-        var reviewerMap: [String: ReviewInfo] = [:]
-
-        // Process reviews -- latest review wins, except COMMENTED never
-        // overrides a decisive state (APPROVED/CHANGES_REQUESTED).
-        for review in reviews {
-            guard let user = review.user else { continue }
-
-            let state: ReviewState
-            switch review.state {
-            case "APPROVED": state = .approved
-            case "CHANGES_REQUESTED": state = .changesRequested
-            case "COMMENTED": state = .commented
-            default: state = .pending
-            }
-
-            // Don't let a comment downgrade an approval or change-request
-            if state == .commented,
-               let existing = reviewerMap[user.login],
-               existing.state == .approved || existing.state == .changesRequested {
-                continue
-            }
-
-            reviewerMap[user.login] = ReviewInfo(
-                reviewerLogin: user.login,
-                reviewerName: user.name,
-                state: state
-            )
+        let reviewInputs = reviews.map {
+            ReviewInput(login: $0.user?.login, name: $0.user?.name, state: $0.state)
         }
-
-        // Requested reviewers override any prior review state -- being in this
-        // list means the review was dismissed or re-requested, so treat as pending.
-        for user in requestedReviewers {
-            reviewerMap[user.login] = ReviewInfo(
-                reviewerLogin: user.login,
-                reviewerName: user.name,
-                state: .pending
-            )
+        let reviewerInputs = requestedReviewers.map {
+            ReviewerInput(login: $0.login, name: $0.name)
         }
-
-        return Array(reviewerMap.values)
+        return ReviewStateBuilder.build(reviews: reviewInputs, requestedReviewers: reviewerInputs)
     }
 }

@@ -38,3 +38,15 @@ targets:
         CODE_SIGN_ENTITLEMENTS: PRNotifier/PRNotifier.entitlements
     dependencies:
       - package: KeychainAccess
+
+  PRNotifierTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - PRNotifierTests
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: true
+    dependencies:
+      - target: PRNotifier
