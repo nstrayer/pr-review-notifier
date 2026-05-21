@@ -46,3 +46,17 @@ Native macOS menu bar app built with Swift 5.9 and SwiftUI, targeting macOS 14.0
 - camelCase for variables/functions, PascalCase for types
 - async/await for asynchronous operations
 - Early returns, explicit error handling
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default label vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout (one `CONTEXT.md` + `docs/adr/` at the repo root). See `docs/agents/domain.md`.
