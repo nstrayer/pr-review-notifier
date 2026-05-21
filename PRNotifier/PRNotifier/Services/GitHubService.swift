@@ -42,6 +42,7 @@ private struct GitHubPullRequest: Decodable {
     let htmlUrl: String
     let user: GitHubUser?
     let head: GitHubHead
+    let draft: Bool?
 }
 
 private struct ReviewersResponse: Decodable {
@@ -134,7 +135,8 @@ struct GitHubService {
                         title: ghPR.title,
                         htmlURL: ghPR.htmlUrl,
                         repo: repoFullName,
-                        authorLogin: ghPR.user?.login
+                        authorLogin: ghPR.user?.login,
+                        isDraft: ghPR.draft
                     )
                     validPRsByID[ghPR.id] = pr
 
@@ -173,6 +175,7 @@ struct GitHubService {
                         htmlURL: ghPR.htmlUrl,
                         repo: repoFullName,
                         authorLogin: ghPR.user?.login,
+                        isDraft: ghPR.draft,
                         reviews: reviewInfos,
                         isAuthored: true,
                         ciInfo: ciInfo

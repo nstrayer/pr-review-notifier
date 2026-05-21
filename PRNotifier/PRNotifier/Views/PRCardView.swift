@@ -28,6 +28,22 @@ struct PRCardView: View {
                                 .strokeBorder(Color.green.opacity(0.3), lineWidth: 0.5)
                         )
                 }
+            } else if pr.isDraft == true {
+                HStack {
+                    Spacer()
+                    Text("DRAFT")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.gray.opacity(0.15))
+                        .foregroundStyle(.secondary)
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(Color.gray.opacity(0.3), lineWidth: 0.5)
+                        )
+                }
             }
 
             // Title
