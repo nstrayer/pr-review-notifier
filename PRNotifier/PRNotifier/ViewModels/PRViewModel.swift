@@ -124,10 +124,13 @@ final class PRViewModel {
         if settings.devShowSamplePRs {
             await loadSamplePRs()
             lastCheckTime = Date()
-            await persistence.setLastQueryTime(lastCheckTime)
             errors = []
             hasErrors = false
-            await persistence.setLastCheckErrors([])
+            await persistence.update { cache in
+                cache.lastQueryTime = lastCheckTime
+                cache.lastCheckHadErrors = false
+                cache.lastCheckErrors = []
+            }
             return
         }
 
@@ -155,12 +158,16 @@ final class PRViewModel {
             }
             errors = configErrors
             hasErrors = !configErrors.isEmpty
-            await persistence.setLastCheckErrors(configErrors)
+            await persistence.update { cache in
+                cache.lastCheckHadErrors = !configErrors.isEmpty
+                cache.lastCheckErrors = configErrors
+            }
             return
         }
 
         guard let token = KeychainService.getActiveToken() else { return }
-        let dismissedIDs = await persistence.getDismissedPRIDs()
+        let cache = await persistence.getCache()
+        let dismissedIDs = cache.dismissedPRIDs
 
         do {
             let result = try await github.checkForPRs(
@@ -177,16 +184,8 @@ final class PRViewModel {
             hasErrors = result.hasErrors
             lastCheckTime = Date()
 
-            // Clean stale dismissed IDs
-            let cleanedDismissedIDs = dismissedIDs.intersection(result.validPRIDs)
-            await persistence.setDismissedPRIDs(cleanedDismissedIDs)
-            await persistence.setPendingPRs(result.activePRs)
-            await persistence.setAuthoredPRs(result.authoredPRs)
-            await persistence.setLastQueryTime(lastCheckTime)
-            await persistence.setLastCheckErrors(result.errors)
-
             // Send notifications for new PRs
-            let notifiedIDs = await persistence.getNotifiedPRIDs()
+            let notifiedIDs = cache.notifiedPRIDs
             let newPRs = result.activePRs.filter { !notifiedIDs.contains($0.id) }
 
             if settings.enableNotifications && !newPRs.isEmpty {
@@ -198,13 +197,8 @@ final class PRViewModel {
                 }
             }
 
-            // Update notified IDs: add new, remove stale
-            let updatedNotifiedIDs = notifiedIDs.union(Set(newPRs.map(\.id)))
-                .intersection(result.validPRIDs)
-            await persistence.setNotifiedPRIDs(updatedNotifiedIDs)
-
             // Send ready-to-merge notifications
-            let readyMergeNotifiedIDs = await persistence.getReadyMergeNotifiedPRIDs()
+            let readyMergeNotifiedIDs = cache.readyMergeNotifiedPRIDs
             let newlyReady = readyToMergePRs.filter { !readyMergeNotifiedIDs.contains($0.id) }
 
             if settings.enableNotifications && !newlyReady.isEmpty {
@@ -213,11 +207,21 @@ final class PRViewModel {
                 }
             }
 
+            // Single persistence write for the entire check cycle
             let authoredPRIDs = Set(result.authoredPRs.map(\.id))
-            let updatedReadyIDs = readyMergeNotifiedIDs
-                .union(Set(newlyReady.map(\.id)))
-                .intersection(authoredPRIDs)
-            await persistence.setReadyMergeNotifiedPRIDs(updatedReadyIDs)
+            await persistence.update { cache in
+                cache.dismissedPRIDs = dismissedIDs.intersection(result.validPRIDs)
+                cache.pendingPRs = result.activePRs
+                cache.authoredPRs = result.authoredPRs
+                cache.lastQueryTime = lastCheckTime
+                cache.lastCheckHadErrors = result.hasErrors
+                cache.lastCheckErrors = result.errors
+                cache.notifiedPRIDs = notifiedIDs.union(Set(newPRs.map(\.id)))
+                    .intersection(result.validPRIDs)
+                cache.readyMergeNotifiedPRIDs = readyMergeNotifiedIDs
+                    .union(Set(newlyReady.map(\.id)))
+                    .intersection(authoredPRIDs)
+            }
         } catch {
             let checkError = CheckError(
                 type: .unknown,
@@ -226,7 +230,10 @@ final class PRViewModel {
             )
             errors = [checkError]
             hasErrors = true
-            await persistence.setLastCheckErrors([checkError])
+            await persistence.update { cache in
+                cache.lastCheckHadErrors = true
+                cache.lastCheckErrors = [checkError]
+            }
         }
     }
 
@@ -237,9 +244,12 @@ final class PRViewModel {
         let pr = activePRs.remove(at: index)
         dismissedPRs.append(pr)
 
+        let updatedPRs = activePRs
         Task {
-            await persistence.addDismissedPRID(prID)
-            await persistence.setPendingPRs(activePRs)
+            await persistence.update { cache in
+                cache.dismissedPRIDs.insert(prID)
+                cache.pendingPRs = updatedPRs
+            }
         }
     }
 
@@ -248,9 +258,12 @@ final class PRViewModel {
         let pr = dismissedPRs.remove(at: index)
         activePRs.append(pr)
 
+        let updatedPRs = activePRs
         Task {
-            await persistence.removeDismissedPRID(prID)
-            await persistence.setPendingPRs(activePRs)
+            await persistence.update { cache in
+                cache.dismissedPRIDs.remove(prID)
+                cache.pendingPRs = updatedPRs
+            }
         }
     }
 
@@ -309,16 +322,17 @@ final class PRViewModel {
         let validIDs = Set(allValid.map(\.id))
         let cleanedDismissedIDs = storedDismissedIDs.intersection(validIDs)
 
-        if cleanedDismissedIDs != storedDismissedIDs {
-            await persistence.setDismissedPRIDs(cleanedDismissedIDs)
-        }
-
         self.activePRs = sampleActive.filter { !cleanedDismissedIDs.contains($0.id) }
         let dismissedFromActive = sampleActive.filter { cleanedDismissedIDs.contains($0.id) }
         self.dismissedPRs = sampleAlwaysDismissed + dismissedFromActive
         self.authoredPRs = sampleAuthored
 
-        await persistence.setPendingPRs(self.activePRs)
-        await persistence.setAuthoredPRs(sampleAuthored)
+        await persistence.update { cache in
+            if cleanedDismissedIDs != storedDismissedIDs {
+                cache.dismissedPRIDs = cleanedDismissedIDs
+            }
+            cache.pendingPRs = self.activePRs
+            cache.authoredPRs = sampleAuthored
+        }
     }
 }

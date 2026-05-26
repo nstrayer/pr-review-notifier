@@ -66,37 +66,7 @@ actor PersistenceManager {
     func getLastCheckErrors() -> [CheckError] { cache.lastCheckErrors }
     func getCache() -> CacheData { cache }
 
-    // MARK: - Write
-
-    func setPendingPRs(_ prs: [PR]) { cache.pendingPRs = prs; save() }
-    func setAuthoredPRs(_ prs: [PR]) { cache.authoredPRs = prs; save() }
-    func setNotifiedPRIDs(_ ids: Set<Int>) { cache.notifiedPRIDs = ids; save() }
-    func setDismissedPRIDs(_ ids: Set<Int>) { cache.dismissedPRIDs = ids; save() }
-    func setLastQueryTime(_ date: Date?) { cache.lastQueryTime = date; save() }
-
-    func setLastCheckErrors(_ errors: [CheckError]) {
-        cache.lastCheckHadErrors = !errors.isEmpty
-        cache.lastCheckErrors = errors
-        save()
-    }
-
-    func addDismissedPRID(_ id: Int) {
-        cache.dismissedPRIDs.insert(id)
-        save()
-    }
-
-    func removeDismissedPRID(_ id: Int) {
-        cache.dismissedPRIDs.remove(id)
-        save()
-    }
-
-    func addNotifiedPRID(_ id: Int) {
-        cache.notifiedPRIDs.insert(id)
-        save()
-    }
-
     func getReadyMergeNotifiedPRIDs() -> Set<Int> { cache.readyMergeNotifiedPRIDs }
-    func setReadyMergeNotifiedPRIDs(_ ids: Set<Int>) { cache.readyMergeNotifiedPRIDs = ids; save() }
 
     func update(_ block: (inout CacheData) -> Void) {
         block(&cache)
