@@ -155,12 +155,14 @@ final class PRViewModel {
             enableNotifications: settings.enableNotifications
         ))
 
-        activePRs = outcome.activePRs
-        dismissedPRs = outcome.dismissedPRs
-        authoredPRs = outcome.authoredPRs
         errors = outcome.errors
         hasErrors = outcome.hasErrors
-        lastCheckTime = outcome.checkTime
+        if !outcome.isTotalFailure {
+            activePRs = outcome.activePRs
+            dismissedPRs = outcome.dismissedPRs
+            authoredPRs = outcome.authoredPRs
+            lastCheckTime = outcome.checkTime
+        }
     }
 
     // MARK: - Config Validation

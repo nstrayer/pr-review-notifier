@@ -14,6 +14,7 @@ struct CheckOutcome {
     var errors: [CheckError]
     var hasErrors: Bool
     var checkTime: Date
+    var isTotalFailure: Bool
 }
 
 struct PRCheckCoordinator {
@@ -87,7 +88,8 @@ struct PRCheckCoordinator {
                 authoredPRs: result.authoredPRs,
                 errors: result.errors,
                 hasErrors: result.hasErrors,
-                checkTime: checkTime
+                checkTime: checkTime,
+                isTotalFailure: false
             )
         } catch {
             let checkError = CheckError(
@@ -105,7 +107,8 @@ struct PRCheckCoordinator {
                 authoredPRs: [],
                 errors: [checkError],
                 hasErrors: true,
-                checkTime: Date()
+                checkTime: Date(),
+                isTotalFailure: true
             )
         }
     }
