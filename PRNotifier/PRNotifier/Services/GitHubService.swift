@@ -62,6 +62,7 @@ struct PRCheckResult {
     var validPRIDs: Set<Int>
     var errors: [CheckError]
     var hasErrors: Bool
+    var reposSucceeded: Int
 }
 
 // MARK: - Service
@@ -85,6 +86,7 @@ struct GitHubService {
         var authoredPRs: [PR] = []
         var errors: [CheckError] = []
         var validPRIDs: Set<Int> = []
+        var reposSucceeded = 0
 
         for repoFullName in repos {
             let parts = repoFullName.split(separator: "/")
@@ -108,6 +110,8 @@ struct GitHubService {
                 errors.append(parseAPIError(error, context: repoFullName))
                 continue
             }
+
+            reposSucceeded += 1
 
             for ghPR in openPRs {
                 // Check if user is requested reviewer
@@ -185,7 +189,8 @@ struct GitHubService {
             authoredPRs: authoredPRs,
             validPRIDs: validPRIDs,
             errors: errors,
-            hasErrors: !errors.isEmpty
+            hasErrors: !errors.isEmpty,
+            reposSucceeded: reposSucceeded
         )
     }
 

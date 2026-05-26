@@ -66,9 +66,7 @@ struct PRCheckCoordinator {
                 }
             }
 
-            let allReposFailed = result.hasErrors
-                && result.pendingPRs.isEmpty
-                && result.authoredPRs.isEmpty
+            let allReposFailed = result.reposSucceeded == 0 && result.hasErrors
 
             // Single persistence write -- only update PR data on success
             if allReposFailed {
