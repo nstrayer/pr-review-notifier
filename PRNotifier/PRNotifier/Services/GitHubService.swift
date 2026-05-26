@@ -57,8 +57,7 @@ private struct GitHubReview: Decodable {
 // MARK: - Result
 
 struct PRCheckResult {
-    var activePRs: [PR]
-    var dismissedPRs: [PR]
+    var pendingPRs: [PR]
     var authoredPRs: [PR]
     var validPRIDs: Set<Int>
     var errors: [CheckError]
@@ -80,14 +79,12 @@ struct GitHubService {
     func checkForPRs(
         token: String,
         repos: [String],
-        username: String,
-        dismissedIDs: Set<Int>
+        username: String
     ) async throws -> PRCheckResult {
         var pendingPRs: [PR] = []
         var authoredPRs: [PR] = []
         var errors: [CheckError] = []
         var validPRIDs: Set<Int> = []
-        var validPRsByID: [Int: PR] = [:]
 
         for repoFullName in repos {
             let parts = repoFullName.split(separator: "/")
@@ -138,8 +135,6 @@ struct GitHubService {
                         authorLogin: ghPR.user?.login,
                         isDraft: ghPR.draft
                     )
-                    validPRsByID[ghPR.id] = pr
-
                     pendingPRs.append(pr)
                 }
 
@@ -185,16 +180,8 @@ struct GitHubService {
             }
         }
 
-        // Clean dismissed IDs to only those still valid
-        let activeDismissedIDs = dismissedIDs.intersection(validPRIDs)
-
-        // Build active and dismissed lists
-        let activePRs = pendingPRs.filter { !activeDismissedIDs.contains($0.id) }
-        let dismissedPRs = activeDismissedIDs.compactMap { validPRsByID[$0] }
-
         return PRCheckResult(
-            activePRs: activePRs,
-            dismissedPRs: dismissedPRs,
+            pendingPRs: pendingPRs,
             authoredPRs: authoredPRs,
             validPRIDs: validPRIDs,
             errors: errors,

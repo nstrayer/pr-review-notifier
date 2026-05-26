@@ -21,6 +21,7 @@ final class PRViewModel {
     private var isCheckInFlight = false
     private let github = GitHubService()
     private let persistence = PersistenceManager.shared
+    private let dismissals = DismissalManager()
 
     // MARK: - Init
 
@@ -167,18 +168,25 @@ final class PRViewModel {
 
         guard let token = KeychainService.getActiveToken() else { return }
         let cache = await persistence.getCache()
-        let dismissedIDs = cache.dismissedPRIDs
+        let dismissedIDs = await dismissals.dismissedIDs()
 
         do {
             let result = try await github.checkForPRs(
                 token: token,
                 repos: settings.repos,
-                username: settings.effectiveUsername,
-                dismissedIDs: dismissedIDs
+                username: settings.effectiveUsername
             )
 
-            activePRs = result.activePRs
-            dismissedPRs = result.dismissedPRs
+            // Filter active vs dismissed using DismissalManager
+            let cleanedDismissedIDs = dismissals.cleanStale(
+                validIDs: result.validPRIDs, current: dismissedIDs
+            )
+            let filtered = dismissals.filterActive(
+                from: result.pendingPRs, dismissed: cleanedDismissedIDs
+            )
+
+            activePRs = filtered.active
+            dismissedPRs = filtered.dismissed
             authoredPRs = result.authoredPRs
             errors = result.errors
             hasErrors = result.hasErrors
@@ -186,14 +194,14 @@ final class PRViewModel {
 
             // Send notifications for new PRs
             let notifiedIDs = cache.notifiedPRIDs
-            let newPRs = result.activePRs.filter { !notifiedIDs.contains($0.id) }
+            let newPRs = filtered.active.filter { !notifiedIDs.contains($0.id) }
 
             if settings.enableNotifications && !newPRs.isEmpty {
                 for pr in newPRs {
                     await NotificationService.shared.sendNewPRNotification(pr: pr)
                 }
                 if newPRs.count > 1 {
-                    await NotificationService.shared.sendSummaryNotification(count: result.activePRs.count)
+                    await NotificationService.shared.sendSummaryNotification(count: filtered.active.count)
                 }
             }
 
@@ -210,8 +218,8 @@ final class PRViewModel {
             // Single persistence write for the entire check cycle
             let authoredPRIDs = Set(result.authoredPRs.map(\.id))
             await persistence.update { cache in
-                cache.dismissedPRIDs = dismissedIDs.intersection(result.validPRIDs)
-                cache.pendingPRs = result.activePRs
+                cache.dismissedPRIDs = cleanedDismissedIDs
+                cache.pendingPRs = filtered.active
                 cache.authoredPRs = result.authoredPRs
                 cache.lastQueryTime = lastCheckTime
                 cache.lastCheckHadErrors = result.hasErrors
@@ -245,12 +253,7 @@ final class PRViewModel {
         dismissedPRs.append(pr)
 
         let updatedPRs = activePRs
-        Task {
-            await persistence.update { cache in
-                cache.dismissedPRIDs.insert(prID)
-                cache.pendingPRs = updatedPRs
-            }
-        }
+        Task { await dismissals.dismiss(prID, pendingPRs: updatedPRs) }
     }
 
     func undismiss(_ prID: Int) {
@@ -259,12 +262,7 @@ final class PRViewModel {
         activePRs.append(pr)
 
         let updatedPRs = activePRs
-        Task {
-            await persistence.update { cache in
-                cache.dismissedPRIDs.remove(prID)
-                cache.pendingPRs = updatedPRs
-            }
-        }
+        Task { await dismissals.restore(prID, pendingPRs: updatedPRs) }
     }
 
     // MARK: - Sample PRs (matches github.ts sample data)
@@ -318,13 +316,15 @@ final class PRViewModel {
 
         let allValid = sampleActive + sampleAlwaysDismissed
 
-        let storedDismissedIDs = await persistence.getDismissedPRIDs()
+        let storedDismissedIDs = await dismissals.dismissedIDs()
         let validIDs = Set(allValid.map(\.id))
-        let cleanedDismissedIDs = storedDismissedIDs.intersection(validIDs)
+        let cleanedDismissedIDs = dismissals.cleanStale(
+            validIDs: validIDs, current: storedDismissedIDs
+        )
 
-        self.activePRs = sampleActive.filter { !cleanedDismissedIDs.contains($0.id) }
-        let dismissedFromActive = sampleActive.filter { cleanedDismissedIDs.contains($0.id) }
-        self.dismissedPRs = sampleAlwaysDismissed + dismissedFromActive
+        let filtered = dismissals.filterActive(from: sampleActive, dismissed: cleanedDismissedIDs)
+        self.activePRs = filtered.active
+        self.dismissedPRs = sampleAlwaysDismissed + filtered.dismissed
         self.authoredPRs = sampleAuthored
 
         await persistence.update { cache in
