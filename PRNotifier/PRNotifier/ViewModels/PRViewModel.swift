@@ -19,9 +19,9 @@ final class PRViewModel {
 
     private var pollingTask: Task<Void, Never>?
     private var isCheckInFlight = false
-    private let github = GitHubService()
-    private let persistence = PersistenceManager.shared
+    private let coordinator = PRCheckCoordinator()
     private let dismissals = DismissalManager()
+    private let persistence = PersistenceManager.shared
 
     // MARK: - Init
 
@@ -136,27 +136,7 @@ final class PRViewModel {
         }
 
         guard settings.isConfigured else {
-            // Build config errors
-            var configErrors: [CheckError] = []
-            let token = KeychainService.getActiveToken()
-            if token == nil || token!.isEmpty {
-                configErrors.append(CheckError(
-                    type: .auth,
-                    message: "Not authenticated. Sign in with GitHub or add a token in settings."
-                ))
-            }
-            if settings.effectiveUsername.isEmpty {
-                configErrors.append(CheckError(
-                    type: .auth,
-                    message: "GitHub username not configured. Please add your username in settings."
-                ))
-            }
-            if settings.repos.isEmpty {
-                configErrors.append(CheckError(
-                    type: .auth,
-                    message: "No repositories configured. Please add repositories to monitor in settings."
-                ))
-            }
+            let configErrors = buildConfigErrors()
             errors = configErrors
             hasErrors = !configErrors.isEmpty
             await persistence.update { cache in
@@ -167,82 +147,46 @@ final class PRViewModel {
         }
 
         guard let token = KeychainService.getActiveToken() else { return }
-        let cache = await persistence.getCache()
-        let dismissedIDs = await dismissals.dismissedIDs()
 
-        do {
-            let result = try await github.checkForPRs(
-                token: token,
-                repos: settings.repos,
-                username: settings.effectiveUsername
-            )
+        let outcome = await coordinator.check(config: CheckConfig(
+            token: token,
+            repos: settings.repos,
+            username: settings.effectiveUsername,
+            enableNotifications: settings.enableNotifications
+        ))
 
-            // Filter active vs dismissed using DismissalManager
-            let cleanedDismissedIDs = dismissals.cleanStale(
-                validIDs: result.validPRIDs, current: dismissedIDs
-            )
-            let filtered = dismissals.filterActive(
-                from: result.pendingPRs, dismissed: cleanedDismissedIDs
-            )
+        activePRs = outcome.activePRs
+        dismissedPRs = outcome.dismissedPRs
+        authoredPRs = outcome.authoredPRs
+        errors = outcome.errors
+        hasErrors = outcome.hasErrors
+        lastCheckTime = outcome.checkTime
+    }
 
-            activePRs = filtered.active
-            dismissedPRs = filtered.dismissed
-            authoredPRs = result.authoredPRs
-            errors = result.errors
-            hasErrors = result.hasErrors
-            lastCheckTime = Date()
+    // MARK: - Config Validation
 
-            // Send notifications for new PRs
-            let notifiedIDs = cache.notifiedPRIDs
-            let newPRs = filtered.active.filter { !notifiedIDs.contains($0.id) }
-
-            if settings.enableNotifications && !newPRs.isEmpty {
-                for pr in newPRs {
-                    await NotificationService.shared.sendNewPRNotification(pr: pr)
-                }
-                if newPRs.count > 1 {
-                    await NotificationService.shared.sendSummaryNotification(count: filtered.active.count)
-                }
-            }
-
-            // Send ready-to-merge notifications
-            let readyMergeNotifiedIDs = cache.readyMergeNotifiedPRIDs
-            let newlyReady = readyToMergePRs.filter { !readyMergeNotifiedIDs.contains($0.id) }
-
-            if settings.enableNotifications && !newlyReady.isEmpty {
-                for pr in newlyReady {
-                    await NotificationService.shared.sendReadyToMergeNotification(pr: pr)
-                }
-            }
-
-            // Single persistence write for the entire check cycle
-            let authoredPRIDs = Set(result.authoredPRs.map(\.id))
-            await persistence.update { cache in
-                cache.dismissedPRIDs = cleanedDismissedIDs
-                cache.pendingPRs = filtered.active
-                cache.authoredPRs = result.authoredPRs
-                cache.lastQueryTime = lastCheckTime
-                cache.lastCheckHadErrors = result.hasErrors
-                cache.lastCheckErrors = result.errors
-                cache.notifiedPRIDs = notifiedIDs.union(Set(newPRs.map(\.id)))
-                    .intersection(result.validPRIDs)
-                cache.readyMergeNotifiedPRIDs = readyMergeNotifiedIDs
-                    .union(Set(newlyReady.map(\.id)))
-                    .intersection(authoredPRIDs)
-            }
-        } catch {
-            let checkError = CheckError(
-                type: .unknown,
-                message: error.localizedDescription,
-                details: "An unexpected error occurred."
-            )
-            errors = [checkError]
-            hasErrors = true
-            await persistence.update { cache in
-                cache.lastCheckHadErrors = true
-                cache.lastCheckErrors = [checkError]
-            }
+    private func buildConfigErrors() -> [CheckError] {
+        var configErrors: [CheckError] = []
+        let token = KeychainService.getActiveToken()
+        if token == nil || token!.isEmpty {
+            configErrors.append(CheckError(
+                type: .auth,
+                message: "Not authenticated. Sign in with GitHub or add a token in settings."
+            ))
         }
+        if settings.effectiveUsername.isEmpty {
+            configErrors.append(CheckError(
+                type: .auth,
+                message: "GitHub username not configured. Please add your username in settings."
+            ))
+        }
+        if settings.repos.isEmpty {
+            configErrors.append(CheckError(
+                type: .auth,
+                message: "No repositories configured. Please add repositories to monitor in settings."
+            ))
+        }
+        return configErrors
     }
 
     // MARK: - Dismiss / Undismiss
