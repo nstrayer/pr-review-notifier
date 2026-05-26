@@ -15,6 +15,7 @@
 		511772A3843BA722FAA6D812 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 213AF4149CFA6E62F6C9CD46 /* ContentView.swift */; };
 		549D9BF7F50359C8F574F5D3 /* OAuthLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A36EA7DEBF55F9590EEADD6 /* OAuthLoginView.swift */; };
 		5CA3841FFAD1F407C659B700 /* CIInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADEE55B798EC1A94092D683E /* CIInfo.swift */; };
+		66A84F9458A3838F423EFB2A /* CIInfoDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74F09AF3C2BAA5C3951AF876 /* CIInfoDecodingTests.swift */; };
 		6A9C03E0B1292CE9E2915D49 /* PRViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E568272B6BBEA584821B79D1 /* PRViewModel.swift */; };
 		76D5E118F07F36F70FFC3DE3 /* PRListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8182714A500FC238FA63938 /* PRListView.swift */; };
 		7810D93EC8BB09C1836EDA71 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20BD5AAF2E10C76397D7BC42 /* SettingsView.swift */; };
@@ -66,6 +67,7 @@
 		54C7C0006D42531CCF7080A6 /* InputValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputValidation.swift; sourceTree = "<group>"; };
 		5F953AB350C82F17BA9E4667 /* PRNotifier.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PRNotifier.entitlements; sourceTree = "<group>"; };
 		65630BC2A565A84BDBA082C5 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		74F09AF3C2BAA5C3951AF876 /* CIInfoDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CIInfoDecodingTests.swift; sourceTree = "<group>"; };
 		751378E9A5F234D6A5804CD6 /* PR.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PR.swift; sourceTree = "<group>"; };
 		85DC5A9A14E352C2B8449AA3 /* PRCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRCardView.swift; sourceTree = "<group>"; };
 		8A36EA7DEBF55F9590EEADD6 /* OAuthLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthLoginView.swift; sourceTree = "<group>"; };
@@ -183,6 +185,7 @@
 		C75AD5C8D587AF9FBF0E9628 /* PRNotifierTests */ = {
 			isa = PBXGroup;
 			children = (
+				74F09AF3C2BAA5C3951AF876 /* CIInfoDecodingTests.swift */,
 				238B36C59FBAECD78ED2601C /* CIStatusAggregatorTests.swift */,
 				033C049FA690DF1271FFA00B /* ReviewStateBuilderTests.swift */,
 			);
@@ -295,6 +298,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				66A84F9458A3838F423EFB2A /* CIInfoDecodingTests.swift in Sources */,
 				479F3CAF89CC03CA3A20218B /* CIStatusAggregatorTests.swift in Sources */,
 				DB3851395651AA2C181946CB /* ReviewStateBuilderTests.swift in Sources */,
 			);

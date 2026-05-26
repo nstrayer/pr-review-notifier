@@ -8,7 +8,7 @@ struct SettingsSnapshot: Codable {
     var autoLaunch: Bool = true
     var settingsPrompted: Bool = false
     var devShowSamplePRs: Bool = false
-    var authMethod: String = AuthMethod.oauth.rawValue
+    var authMethod: String?
     var oauthUsername: String = ""
     var repoColors: [String: RepoColor] = [:]
 }
@@ -51,7 +51,7 @@ struct UserDefaultsSettingsStore: SettingsStore {
         snapshot.settingsPrompted = defaults.bool(forKey: Keys.settingsPrompted)
         snapshot.devShowSamplePRs = defaults.bool(forKey: Keys.devShowSamplePRs)
         snapshot.oauthUsername = defaults.string(forKey: Keys.oauthUsername) ?? ""
-        snapshot.authMethod = defaults.string(forKey: Keys.authMethod) ?? AuthMethod.oauth.rawValue
+        snapshot.authMethod = defaults.string(forKey: Keys.authMethod)
 
         if let data = defaults.data(forKey: Keys.repoColors),
            let decoded = try? JSONDecoder().decode([String: RepoColor].self, from: data) {
@@ -72,7 +72,9 @@ struct UserDefaultsSettingsStore: SettingsStore {
         defaults.set(snapshot.autoLaunch, forKey: Keys.autoLaunch)
         defaults.set(snapshot.settingsPrompted, forKey: Keys.settingsPrompted)
         defaults.set(snapshot.devShowSamplePRs, forKey: Keys.devShowSamplePRs)
-        defaults.set(snapshot.authMethod, forKey: Keys.authMethod)
+        if let authMethod = snapshot.authMethod {
+            defaults.set(authMethod, forKey: Keys.authMethod)
+        }
         defaults.set(snapshot.oauthUsername, forKey: Keys.oauthUsername)
         if let data = try? JSONEncoder().encode(snapshot.repoColors) {
             defaults.set(data, forKey: Keys.repoColors)

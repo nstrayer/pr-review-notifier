@@ -88,7 +88,7 @@ final class AppSettings {
     /// Only probes keychain for legacy migration (user has config but no stored authMethod).
     func resolveAuthMethod() {
         let snapshot = store.load()
-        if AuthMethod(rawValue: snapshot.authMethod) != nil {
+        if let stored = snapshot.authMethod, AuthMethod(rawValue: stored) != nil {
             return
         }
         // Legacy migration: infer from keychain state
@@ -117,7 +117,7 @@ final class AppSettings {
         self.devShowSamplePRs = snapshot.devShowSamplePRs
         self.oauthUsername = snapshot.oauthUsername
         self.repoColors = snapshot.repoColors
-        self.authMethod = AuthMethod(rawValue: snapshot.authMethod) ?? .oauth
+        self.authMethod = snapshot.authMethod.flatMap(AuthMethod.init(rawValue:)) ?? .oauth
 
         resolveAuthMethod()
 
