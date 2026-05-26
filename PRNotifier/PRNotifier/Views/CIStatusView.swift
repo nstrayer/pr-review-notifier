@@ -18,15 +18,7 @@ struct CIStatusView: View {
         }
     }
 
-    private var sortedChecks: [CheckRunInfo] {
-        ciInfo.checks.sorted { a, b in
-            let order: [CheckRunStatus: Int] = [.failing: 0, .pending: 1, .passing: 2]
-            let ao = order[a.status] ?? 3
-            let bo = order[b.status] ?? 3
-            if ao != bo { return ao < bo }
-            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
-        }
-    }
+    private var sortedChecks: [CheckRunInfo] { ciInfo.sortedChecks }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {

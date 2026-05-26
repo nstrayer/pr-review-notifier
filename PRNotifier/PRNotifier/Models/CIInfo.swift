@@ -30,4 +30,14 @@ struct CheckRunInfo: Codable, Equatable {
 struct CIInfo: Codable, Equatable {
     let checks: [CheckRunInfo]
     let overallStatus: CIStatus
+
+    var sortedChecks: [CheckRunInfo] {
+        checks.sorted { a, b in
+            let order: [CheckRunStatus: Int] = [.failing: 0, .pending: 1, .passing: 2]
+            let ao = order[a.status] ?? 3
+            let bo = order[b.status] ?? 3
+            if ao != bo { return ao < bo }
+            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+        }
+    }
 }

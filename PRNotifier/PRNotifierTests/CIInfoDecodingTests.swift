@@ -34,40 +34,22 @@ final class CIInfoDecodingTests: XCTestCase {
     // MARK: - CIInfo sort stability
 
     func testChecksWithSameStatusSortByName() {
-        let checks = [
+        let ciInfo = CIInfo(checks: [
             CheckRunInfo(name: "zeta", status: .passing),
             CheckRunInfo(name: "alpha", status: .passing),
             CheckRunInfo(name: "middle", status: .passing),
-        ]
-        let ciInfo = CIInfo(checks: checks, overallStatus: .passing)
+        ], overallStatus: .passing)
 
-        let sorted = ciInfo.checks.sorted { a, b in
-            let order: [CheckRunStatus: Int] = [.failing: 0, .pending: 1, .passing: 2]
-            let ao = order[a.status] ?? 3
-            let bo = order[b.status] ?? 3
-            if ao != bo { return ao < bo }
-            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
-        }
-
-        XCTAssertEqual(sorted.map(\.name), ["alpha", "middle", "zeta"])
+        XCTAssertEqual(ciInfo.sortedChecks.map(\.name), ["alpha", "middle", "zeta"])
     }
 
     func testChecksSortFailingBeforePendingBeforePassing() {
-        let checks = [
+        let ciInfo = CIInfo(checks: [
             CheckRunInfo(name: "c-pass", status: .passing),
             CheckRunInfo(name: "a-fail", status: .failing),
             CheckRunInfo(name: "b-pend", status: .pending),
-        ]
-        let ciInfo = CIInfo(checks: checks, overallStatus: .failing)
+        ], overallStatus: .failing)
 
-        let sorted = ciInfo.checks.sorted { a, b in
-            let order: [CheckRunStatus: Int] = [.failing: 0, .pending: 1, .passing: 2]
-            let ao = order[a.status] ?? 3
-            let bo = order[b.status] ?? 3
-            if ao != bo { return ao < bo }
-            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
-        }
-
-        XCTAssertEqual(sorted.map(\.name), ["a-fail", "b-pend", "c-pass"])
+        XCTAssertEqual(ciInfo.sortedChecks.map(\.name), ["a-fail", "b-pend", "c-pass"])
     }
 }

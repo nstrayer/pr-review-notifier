@@ -74,6 +74,8 @@ struct UserDefaultsSettingsStore: SettingsStore {
         defaults.set(snapshot.devShowSamplePRs, forKey: Keys.devShowSamplePRs)
         if let authMethod = snapshot.authMethod {
             defaults.set(authMethod, forKey: Keys.authMethod)
+        } else {
+            defaults.removeObject(forKey: Keys.authMethod)
         }
         defaults.set(snapshot.oauthUsername, forKey: Keys.oauthUsername)
         if let data = try? JSONEncoder().encode(snapshot.repoColors) {
