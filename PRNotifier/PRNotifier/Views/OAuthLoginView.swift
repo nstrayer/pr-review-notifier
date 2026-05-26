@@ -216,6 +216,7 @@ struct OAuthLoginView: View {
                     settings.authMethod = .oauth
                     settings.oauthUsername = username
                     settings.username = username
+                    settings.save()
                     state = .success(username: username)
                 }
 

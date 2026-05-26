@@ -111,6 +111,7 @@ struct SettingsView: View {
             Section {
                 @Bindable var s = settings
                 Toggle("Desktop notifications", isOn: $s.enableNotifications)
+                    .onChange(of: settings.enableNotifications) { settings.save() }
             } header: {
                 Text("Notifications")
             } footer: {
@@ -172,6 +173,7 @@ struct SettingsView: View {
                     @Bindable var s = settings
                     Toggle("Show sample PRs", isOn: $s.devShowSamplePRs)
                         .onChange(of: settings.devShowSamplePRs) {
+                            settings.save()
                             viewModel.restartPolling()
                         }
                 }
@@ -403,6 +405,8 @@ struct SettingsView: View {
         }
         settings.repos = repos
         settings.checkInterval = checkInterval
+        settings.cleanRepoColors()
+        settings.save()
 
         // Restart polling to pick up changes
         viewModel.restartPolling()
@@ -420,6 +424,7 @@ struct SettingsView: View {
         try? KeychainService.deleteOAuthToken()
         settings.authMethod = .oauth
         settings.oauthUsername = ""
+        settings.save()
         viewModel.restartPolling()
     }
 
@@ -438,6 +443,7 @@ struct SettingsView: View {
             try? KeychainService.deleteOAuthToken()
             settings.authMethod = .pat
             settings.oauthUsername = ""
+            settings.save()
             showPATSection = false
         } catch {
             errors["token"] = "Failed to save token: \(error.localizedDescription)"
@@ -515,6 +521,7 @@ struct SettingsView: View {
                     )
                     .onTapGesture {
                         settings.repoColors[repo] = color
+                        settings.save()
                         colorPickerRepo = nil
                     }
             }
@@ -532,6 +539,7 @@ struct SettingsView: View {
                 try SMAppService.mainApp.unregister()
             }
             settings.autoLaunch = enabled
+            settings.save()
         } catch {
             // Revert toggle on failure
             autoLaunch = !enabled

@@ -7,71 +7,18 @@ enum AuthMethod: String {
 
 @MainActor @Observable
 final class AppSettings {
-    private let defaults = UserDefaults.standard
+    private let store: SettingsStore
 
-    private enum Keys {
-        static let repos = "repos"
-        static let username = "username"
-        static let checkInterval = "checkInterval"
-        static let enableNotifications = "enableNotifications"
-        static let autoLaunch = "autoLaunch"
-        static let settingsPrompted = "settingsPrompted"
-        static let devShowSamplePRs = "devShowSamplePRs"
-        static let authMethod = "authMethod"
-        static let oauthUsername = "oauthUsername"
-        static let repoColors = "repoColors"
-    }
-
-    var repos: [String] {
-        didSet {
-            if let data = try? JSONEncoder().encode(repos) {
-                defaults.set(data, forKey: Keys.repos)
-            }
-            // Remove color entries for repos no longer in the list
-            let repoSet = Set(repos)
-            repoColors = repoColors.filter { repoSet.contains($0.key) }
-        }
-    }
-
-    var username: String {
-        didSet { defaults.set(username, forKey: Keys.username) }
-    }
-
-    var checkInterval: Int {
-        didSet { defaults.set(checkInterval, forKey: Keys.checkInterval) }
-    }
-
-    var enableNotifications: Bool {
-        didSet { defaults.set(enableNotifications, forKey: Keys.enableNotifications) }
-    }
-
-    var autoLaunch: Bool {
-        didSet { defaults.set(autoLaunch, forKey: Keys.autoLaunch) }
-    }
-
-    var settingsPrompted: Bool {
-        didSet { defaults.set(settingsPrompted, forKey: Keys.settingsPrompted) }
-    }
-
-    var devShowSamplePRs: Bool {
-        didSet { defaults.set(devShowSamplePRs, forKey: Keys.devShowSamplePRs) }
-    }
-
-    var authMethod: AuthMethod {
-        didSet { defaults.set(authMethod.rawValue, forKey: Keys.authMethod) }
-    }
-
-    var oauthUsername: String {
-        didSet { defaults.set(oauthUsername, forKey: Keys.oauthUsername) }
-    }
-
-    var repoColors: [String: RepoColor] {
-        didSet {
-            if let data = try? JSONEncoder().encode(repoColors) {
-                defaults.set(data, forKey: Keys.repoColors)
-            }
-        }
-    }
+    var repos: [String]
+    var username: String
+    var checkInterval: Int
+    var enableNotifications: Bool
+    var autoLaunch: Bool
+    var settingsPrompted: Bool
+    var devShowSamplePRs: Bool
+    var authMethod: AuthMethod
+    var oauthUsername: String
+    var repoColors: [String: RepoColor]
 
     /// The effective username -- OAuth auto-populates, PAT requires manual entry.
     var effectiveUsername: String {
@@ -82,7 +29,6 @@ final class AppSettings {
     }
 
     var isConfigured: Bool {
-        // Check cheap conditions first to avoid unnecessary keychain access
         guard !effectiveUsername.isEmpty && !repos.isEmpty else { return false }
         guard let token = KeychainService.getActiveToken(), !token.isEmpty else {
             return false
@@ -95,7 +41,6 @@ final class AppSettings {
         if let existing = repoColors[repo] {
             return existing
         }
-        // Deterministic fallback: first unused palette color
         let usedColors = Set(repoColors.values)
         return RepoColor.allCases.first { !usedColors.contains($0) }
             ?? RepoColor.allCases[repoColors.count % RepoColor.allCases.count]
@@ -109,62 +54,75 @@ final class AppSettings {
         }
         let color = colorForRepo(repo)
         repoColors[repo] = color
+        save()
         return color
     }
 
-    init() {
-        // Load stored values (must set all stored properties before didSet can fire)
-        let loadedRepos: [String]
-        if let data = defaults.data(forKey: Keys.repos),
-           let decoded = try? JSONDecoder().decode([String].self, from: data) {
-            self.repos = decoded
-            loadedRepos = decoded
-        } else {
-            self.repos = []
-            loadedRepos = []
+    /// Remove color entries for repos no longer in the list and persist.
+    func cleanRepoColors() {
+        let repoSet = Set(repos)
+        let cleaned = repoColors.filter { repoSet.contains($0.key) }
+        if cleaned.count != repoColors.count {
+            repoColors = cleaned
+            save()
         }
-        self.username = defaults.string(forKey: Keys.username) ?? ""
-        let interval = defaults.integer(forKey: Keys.checkInterval)
-        self.checkInterval = interval > 0 ? interval : 15
-        self.enableNotifications = defaults.object(forKey: Keys.enableNotifications) == nil ? true : defaults.bool(forKey: Keys.enableNotifications)
-        self.autoLaunch = defaults.object(forKey: Keys.autoLaunch) == nil ? true : defaults.bool(forKey: Keys.autoLaunch)
-        self.settingsPrompted = defaults.bool(forKey: Keys.settingsPrompted)
-        self.devShowSamplePRs = defaults.bool(forKey: Keys.devShowSamplePRs)
-        self.oauthUsername = defaults.string(forKey: Keys.oauthUsername) ?? ""
-        if let data = defaults.data(forKey: Keys.repoColors),
-           let decoded = try? JSONDecoder().decode([String: RepoColor].self, from: data) {
-            // Filter stale entries and keep only configured repos
-            let repoSet = Set(loadedRepos)
-            self.repoColors = decoded.filter { repoSet.contains($0.key) }
-        } else {
-            self.repoColors = [:]
-        }
+    }
 
-        // Determine auth method: check stored preference, then infer from existing tokens.
-        // Only probe the keychain for legacy migration (user has config but no stored
-        // authMethod). New users get the default without any keychain access, avoiding
-        // macOS keychain permission prompts on first launch.
-        if let stored = defaults.string(forKey: Keys.authMethod),
-           let method = AuthMethod(rawValue: stored) {
-            self.authMethod = method
-        } else if defaults.string(forKey: Keys.username) != nil
-                    || defaults.string(forKey: Keys.oauthUsername) != nil {
-            // Legacy migration: user has config from before authMethod was persisted.
-            // Probe keychain to infer which method they were using.
-            // Falls back to .oauth if tokens were deleted -- user must re-authenticate anyway.
-            if KeychainService.getOAuthToken() != nil {
-                self.authMethod = .oauth
-            } else if KeychainService.getToken() != nil {
-                self.authMethod = .pat
-            } else {
-                self.authMethod = .oauth
-            }
-        } else {
-            self.authMethod = .oauth
+    /// Persist all current settings to the backing store.
+    func save() {
+        var snapshot = SettingsSnapshot()
+        snapshot.repos = repos
+        snapshot.username = username
+        snapshot.checkInterval = checkInterval
+        snapshot.enableNotifications = enableNotifications
+        snapshot.autoLaunch = autoLaunch
+        snapshot.settingsPrompted = settingsPrompted
+        snapshot.devShowSamplePRs = devShowSamplePRs
+        snapshot.authMethod = authMethod.rawValue
+        snapshot.oauthUsername = oauthUsername
+        snapshot.repoColors = repoColors
+        store.save(snapshot)
+    }
+
+    /// Determine auth method from stored preference or infer from existing tokens.
+    /// Only probes keychain for legacy migration (user has config but no stored authMethod).
+    func resolveAuthMethod() {
+        let snapshot = store.load()
+        if AuthMethod(rawValue: snapshot.authMethod) != nil {
+            return
         }
+        // Legacy migration: infer from keychain state
+        if !snapshot.username.isEmpty || !snapshot.oauthUsername.isEmpty {
+            if KeychainService.getOAuthToken() != nil {
+                authMethod = .oauth
+            } else if KeychainService.getToken() != nil {
+                authMethod = .pat
+            } else {
+                authMethod = .oauth
+            }
+            save()
+        }
+    }
+
+    init(store: SettingsStore = UserDefaultsSettingsStore()) {
+        self.store = store
+        let snapshot = store.load()
+
+        self.repos = snapshot.repos
+        self.username = snapshot.username
+        self.checkInterval = snapshot.checkInterval
+        self.enableNotifications = snapshot.enableNotifications
+        self.autoLaunch = snapshot.autoLaunch
+        self.settingsPrompted = snapshot.settingsPrompted
+        self.devShowSamplePRs = snapshot.devShowSamplePRs
+        self.oauthUsername = snapshot.oauthUsername
+        self.repoColors = snapshot.repoColors
+        self.authMethod = AuthMethod(rawValue: snapshot.authMethod) ?? .oauth
+
+        resolveAuthMethod()
 
         // Eagerly assign colors for any repos that don't have one yet
-        for repo in loadedRepos {
+        for repo in snapshot.repos {
             assignColorForRepo(repo)
         }
     }

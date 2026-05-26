@@ -27,6 +27,7 @@
 		A83BCF808F5D78044C5713A7 /* CheckError.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5E673AC525931225DB3D3C /* CheckError.swift */; };
 		A9888D351E0AEEABC9D9A146 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CD81E553083EFC098AC70F6 /* AppDelegate.swift */; };
 		ABBD3AAFCBE1941AD9A3EC79 /* OAuthConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E422FA488CCC18896757D8 /* OAuthConfig.swift */; };
+		B390042446856B0312940EAA /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D51ABB744310EE1659BE5D2 /* SettingsStore.swift */; };
 		B991AA3BC02DB6EA9D3C7E23 /* PersistenceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F34406174F3CFE91C40B10D /* PersistenceManager.swift */; };
 		BB9B87A372AF8FADE4DEFD1E /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A0612768E90EAC1812B980B /* SettingsWindowController.swift */; };
 		C5D2581BEBE27AE0422943CB /* ReviewInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98BF1076CB89563FAC056E1A /* ReviewInfo.swift */; };
@@ -53,6 +54,7 @@
 /* Begin PBXFileReference section */
 		033C049FA690DF1271FFA00B /* ReviewStateBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewStateBuilderTests.swift; sourceTree = "<group>"; };
 		04A0B6697F51CF8DB2347CBB /* RepoColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoColor.swift; sourceTree = "<group>"; };
+		0D51ABB744310EE1659BE5D2 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		20BD5AAF2E10C76397D7BC42 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		213AF4149CFA6E62F6C9CD46 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		238B36C59FBAECD78ED2601C /* CIStatusAggregatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CIStatusAggregatorTests.swift; sourceTree = "<group>"; };
@@ -110,6 +112,7 @@
 				751378E9A5F234D6A5804CD6 /* PR.swift */,
 				04A0B6697F51CF8DB2347CBB /* RepoColor.swift */,
 				98BF1076CB89563FAC056E1A /* ReviewInfo.swift */,
+				0D51ABB744310EE1659BE5D2 /* SettingsStore.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -326,6 +329,7 @@
 				DD3AB4F355A32E7A8777E1DD /* ReviewBadgeView.swift in Sources */,
 				C5D2581BEBE27AE0422943CB /* ReviewInfo.swift in Sources */,
 				3F8452C87D182D3990277043 /* ReviewStateBuilder.swift in Sources */,
+				B390042446856B0312940EAA /* SettingsStore.swift in Sources */,
 				7810D93EC8BB09C1836EDA71 /* SettingsView.swift in Sources */,
 				BB9B87A372AF8FADE4DEFD1E /* SettingsWindowController.swift in Sources */,
 			);
