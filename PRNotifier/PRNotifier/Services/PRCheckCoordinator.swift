@@ -19,12 +19,11 @@ struct CheckOutcome {
 
 struct PRCheckCoordinator {
     private let github = GitHubService()
-    private let dismissals = DismissalManager()
     private let persistence = PersistenceManager.shared
 
     func check(config: CheckConfig) async -> CheckOutcome {
         let cache = await persistence.getCache()
-        let dismissedIDs = await dismissals.dismissedIDs()
+        let dismissedIDs = cache.dismissedPRIDs
 
         do {
             let result = try await github.checkForPRs(
@@ -33,12 +32,10 @@ struct PRCheckCoordinator {
                 username: config.username
             )
 
-            let cleanedDismissedIDs = dismissals.cleanStale(
+            let cleanedDismissedIDs = cleanStaleDismissedIDs(
                 validIDs: result.validPRIDs, current: dismissedIDs
             )
-            let filtered = dismissals.filterActive(
-                from: result.pendingPRs, dismissed: cleanedDismissedIDs
-            )
+            let filtered = partitionPRs(result.pendingPRs, dismissedIDs: cleanedDismissedIDs)
 
             let checkTime = Date()
             let readyToMergePRs = result.authoredPRs.filter { $0.isReadyToMerge }
@@ -68,27 +65,23 @@ struct PRCheckCoordinator {
 
             let allReposFailed = result.reposSucceeded == 0 && result.hasErrors
 
-            // Single persistence write -- only update PR data on success
             if allReposFailed {
-                await persistence.update { cache in
-                    cache.lastCheckHadErrors = true
-                    cache.lastCheckErrors = result.errors
-                }
+                await persistence.recordCheckErrors(result.errors)
             } else {
                 let authoredPRIDs = Set(result.authoredPRs.map(\.id))
-                await persistence.update { cache in
-                    cache.dismissedPRIDs = cleanedDismissedIDs
-                    cache.pendingPRs = filtered.active
-                    cache.authoredPRs = result.authoredPRs
-                    cache.lastQueryTime = checkTime
-                    cache.lastCheckHadErrors = result.hasErrors
-                    cache.lastCheckErrors = result.errors
-                    cache.notifiedPRIDs = notifiedIDs.union(Set(newPRs.map(\.id)))
-                        .intersection(result.validPRIDs)
-                    cache.readyMergeNotifiedPRIDs = readyMergeNotifiedIDs
+                await persistence.saveCheckResult(
+                    dismissedPRIDs: cleanedDismissedIDs,
+                    pendingPRs: filtered.active,
+                    authoredPRs: result.authoredPRs,
+                    checkTime: checkTime,
+                    hasErrors: result.hasErrors,
+                    errors: result.errors,
+                    notifiedPRIDs: notifiedIDs.union(Set(newPRs.map(\.id)))
+                        .intersection(result.validPRIDs),
+                    readyMergeNotifiedPRIDs: readyMergeNotifiedIDs
                         .union(Set(newlyReady.map(\.id)))
                         .intersection(authoredPRIDs)
-                }
+                )
             }
 
             return CheckOutcome(
@@ -106,10 +99,7 @@ struct PRCheckCoordinator {
                 message: error.localizedDescription,
                 details: "An unexpected error occurred."
             )
-            await persistence.update { cache in
-                cache.lastCheckHadErrors = true
-                cache.lastCheckErrors = [checkError]
-            }
+            await persistence.recordCheckErrors([checkError])
             return CheckOutcome(
                 activePRs: [],
                 dismissedPRs: [],

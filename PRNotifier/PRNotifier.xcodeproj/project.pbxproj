@@ -10,8 +10,8 @@
 		096F40600F77525B683ED122 /* ErrorBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A1F8DA6AB9FF180B9731E4 /* ErrorBannerView.swift */; };
 		142F2CB750EE423CD98861A8 /* InputValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C7C0006D42531CCF7080A6 /* InputValidation.swift */; };
 		18C86A1C9C1536A2EBD5098F /* PR.swift in Sources */ = {isa = PBXBuildFile; fileRef = 751378E9A5F234D6A5804CD6 /* PR.swift */; };
-		25834A23E631C412B59617C3 /* DismissalManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C0BF873F9870616AD93D140 /* DismissalManager.swift */; };
 		3F8452C87D182D3990277043 /* ReviewStateBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB6DBB327A2130A23026D5DE /* ReviewStateBuilder.swift */; };
+		467D273F3937B4F91A475244 /* PRFiltering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32A8FCBA3091A0413E396BBF /* PRFiltering.swift */; };
 		479F3CAF89CC03CA3A20218B /* CIStatusAggregatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 238B36C59FBAECD78ED2601C /* CIStatusAggregatorTests.swift */; };
 		511772A3843BA722FAA6D812 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 213AF4149CFA6E62F6C9CD46 /* ContentView.swift */; };
 		549D9BF7F50359C8F574F5D3 /* OAuthLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A36EA7DEBF55F9590EEADD6 /* OAuthLoginView.swift */; };
@@ -63,11 +63,11 @@
 		238B36C59FBAECD78ED2601C /* CIStatusAggregatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CIStatusAggregatorTests.swift; sourceTree = "<group>"; };
 		2EE3BDC521FD1D9FA78B8824 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		31ADB779D4EC6B946BCD1EB4 /* ReviewBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewBadgeView.swift; sourceTree = "<group>"; };
+		32A8FCBA3091A0413E396BBF /* PRFiltering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PRFiltering.swift; sourceTree = "<group>"; };
 		3752E42AF5978BBBD5644455 /* CIStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CIStatusView.swift; sourceTree = "<group>"; };
 		3A0612768E90EAC1812B980B /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 		3CD81E553083EFC098AC70F6 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		54C7C0006D42531CCF7080A6 /* InputValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputValidation.swift; sourceTree = "<group>"; };
-		5C0BF873F9870616AD93D140 /* DismissalManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DismissalManager.swift; sourceTree = "<group>"; };
 		5F953AB350C82F17BA9E4667 /* PRNotifier.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PRNotifier.entitlements; sourceTree = "<group>"; };
 		65630BC2A565A84BDBA082C5 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		74F09AF3C2BAA5C3951AF876 /* CIInfoDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CIInfoDecodingTests.swift; sourceTree = "<group>"; };
@@ -161,12 +161,12 @@
 			children = (
 				8BA937D2C8EF3CE866901865 /* CIStatusAggregator.swift */,
 				8DDB9DBB38763E12D176CA58 /* DeviceFlowService.swift */,
-				5C0BF873F9870616AD93D140 /* DismissalManager.swift */,
 				B06E030EF2210D17AF2CA774 /* GitHubService.swift */,
 				65630BC2A565A84BDBA082C5 /* KeychainService.swift */,
 				C88AC7D4D95276538EA9F8FC /* NotificationService.swift */,
 				8F34406174F3CFE91C40B10D /* PersistenceManager.swift */,
 				E93A94D6766024DCE13565A3 /* PRCheckCoordinator.swift */,
+				32A8FCBA3091A0413E396BBF /* PRFiltering.swift */,
 				EB6DBB327A2130A23026D5DE /* ReviewStateBuilder.swift */,
 			);
 			path = Services;
@@ -322,7 +322,6 @@
 				A83BCF808F5D78044C5713A7 /* CheckError.swift in Sources */,
 				511772A3843BA722FAA6D812 /* ContentView.swift in Sources */,
 				9C4CEBAFE828F295479216E4 /* DeviceFlowService.swift in Sources */,
-				25834A23E631C412B59617C3 /* DismissalManager.swift in Sources */,
 				096F40600F77525B683ED122 /* ErrorBannerView.swift in Sources */,
 				DA6F3A0FB1DC0F3EAE34C637 /* GitHubService.swift in Sources */,
 				142F2CB750EE423CD98861A8 /* InputValidation.swift in Sources */,
@@ -333,6 +332,7 @@
 				18C86A1C9C1536A2EBD5098F /* PR.swift in Sources */,
 				F803FDC7DC7DAFD6633DCE5B /* PRCardView.swift in Sources */,
 				91FF44501B13FB3A7890CA65 /* PRCheckCoordinator.swift in Sources */,
+				467D273F3937B4F91A475244 /* PRFiltering.swift in Sources */,
 				76D5E118F07F36F70FFC3DE3 /* PRListView.swift in Sources */,
 				A12703C50147B69A3D54910E /* PRNotifierApp.swift in Sources */,
 				6A9C03E0B1292CE9E2915D49 /* PRViewModel.swift in Sources */,

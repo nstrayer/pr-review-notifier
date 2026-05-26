@@ -20,7 +20,6 @@ final class PRViewModel {
     private var pollingTask: Task<Void, Never>?
     private var isCheckInFlight = false
     private let coordinator = PRCheckCoordinator()
-    private let dismissals = DismissalManager()
     private let persistence = PersistenceManager.shared
 
     // MARK: - Init
@@ -127,11 +126,11 @@ final class PRViewModel {
             lastCheckTime = Date()
             errors = []
             hasErrors = false
-            await persistence.update { cache in
-                cache.lastQueryTime = lastCheckTime
-                cache.lastCheckHadErrors = false
-                cache.lastCheckErrors = []
-            }
+            await persistence.saveSampleState(
+                pendingPRs: activePRs,
+                authoredPRs: authoredPRs,
+                checkTime: lastCheckTime
+            )
             return
         }
 
@@ -139,10 +138,7 @@ final class PRViewModel {
             let configErrors = buildConfigErrors()
             errors = configErrors
             hasErrors = !configErrors.isEmpty
-            await persistence.update { cache in
-                cache.lastCheckHadErrors = !configErrors.isEmpty
-                cache.lastCheckErrors = configErrors
-            }
+            await persistence.recordCheckErrors(configErrors)
             return
         }
 
@@ -199,7 +195,7 @@ final class PRViewModel {
         dismissedPRs.append(pr)
 
         let updatedPRs = activePRs
-        Task { await dismissals.dismiss(prID, pendingPRs: updatedPRs) }
+        Task { await persistence.dismissPR(prID, updatedPendingPRs: updatedPRs) }
     }
 
     func undismiss(_ prID: Int) {
@@ -208,7 +204,7 @@ final class PRViewModel {
         activePRs.append(pr)
 
         let updatedPRs = activePRs
-        Task { await dismissals.restore(prID, pendingPRs: updatedPRs) }
+        Task { await persistence.restorePR(prID, updatedPendingPRs: updatedPRs) }
     }
 
     // MARK: - Sample PRs (matches github.ts sample data)
@@ -262,23 +258,21 @@ final class PRViewModel {
 
         let allValid = sampleActive + sampleAlwaysDismissed
 
-        let storedDismissedIDs = await dismissals.dismissedIDs()
+        let storedDismissedIDs = await persistence.getDismissedPRIDs()
         let validIDs = Set(allValid.map(\.id))
-        let cleanedDismissedIDs = dismissals.cleanStale(
+        let cleanedDismissedIDs = cleanStaleDismissedIDs(
             validIDs: validIDs, current: storedDismissedIDs
         )
 
-        let filtered = dismissals.filterActive(from: sampleActive, dismissed: cleanedDismissedIDs)
+        let filtered = partitionPRs(sampleActive, dismissedIDs: cleanedDismissedIDs)
         self.activePRs = filtered.active
         self.dismissedPRs = sampleAlwaysDismissed + filtered.dismissed
         self.authoredPRs = sampleAuthored
 
-        await persistence.update { cache in
-            if cleanedDismissedIDs != storedDismissedIDs {
-                cache.dismissedPRIDs = cleanedDismissedIDs
-            }
-            cache.pendingPRs = self.activePRs
-            cache.authoredPRs = sampleAuthored
-        }
+        await persistence.saveSampleState(
+            dismissedPRIDs: cleanedDismissedIDs != storedDismissedIDs ? cleanedDismissedIDs : nil,
+            pendingPRs: self.activePRs,
+            authoredPRs: sampleAuthored
+        )
     }
 }
