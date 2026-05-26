@@ -66,25 +66,32 @@ struct PRCheckCoordinator {
                 }
             }
 
-            // Single persistence write
-            let authoredPRIDs = Set(result.authoredPRs.map(\.id))
-            await persistence.update { cache in
-                cache.dismissedPRIDs = cleanedDismissedIDs
-                cache.pendingPRs = filtered.active
-                cache.authoredPRs = result.authoredPRs
-                cache.lastQueryTime = checkTime
-                cache.lastCheckHadErrors = result.hasErrors
-                cache.lastCheckErrors = result.errors
-                cache.notifiedPRIDs = notifiedIDs.union(Set(newPRs.map(\.id)))
-                    .intersection(result.validPRIDs)
-                cache.readyMergeNotifiedPRIDs = readyMergeNotifiedIDs
-                    .union(Set(newlyReady.map(\.id)))
-                    .intersection(authoredPRIDs)
-            }
-
             let allReposFailed = result.hasErrors
                 && result.pendingPRs.isEmpty
                 && result.authoredPRs.isEmpty
+
+            // Single persistence write -- only update PR data on success
+            if allReposFailed {
+                await persistence.update { cache in
+                    cache.lastCheckHadErrors = true
+                    cache.lastCheckErrors = result.errors
+                }
+            } else {
+                let authoredPRIDs = Set(result.authoredPRs.map(\.id))
+                await persistence.update { cache in
+                    cache.dismissedPRIDs = cleanedDismissedIDs
+                    cache.pendingPRs = filtered.active
+                    cache.authoredPRs = result.authoredPRs
+                    cache.lastQueryTime = checkTime
+                    cache.lastCheckHadErrors = result.hasErrors
+                    cache.lastCheckErrors = result.errors
+                    cache.notifiedPRIDs = notifiedIDs.union(Set(newPRs.map(\.id)))
+                        .intersection(result.validPRIDs)
+                    cache.readyMergeNotifiedPRIDs = readyMergeNotifiedIDs
+                        .union(Set(newlyReady.map(\.id)))
+                        .intersection(authoredPRIDs)
+                }
+            }
 
             return CheckOutcome(
                 activePRs: filtered.active,
