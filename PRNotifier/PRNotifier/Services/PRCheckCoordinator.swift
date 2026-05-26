@@ -17,9 +17,20 @@ struct CheckOutcome {
     var isTotalFailure: Bool
 }
 
-struct PRCheckCoordinator {
-    private let github = GitHubService()
-    private let persistence = PersistenceManager.shared
+struct PRCheckCoordinator: PRChecking {
+    private let github: any GitHubFetching
+    private let persistence: any Persisting
+    private let notifications: any NotificationSending
+
+    init(
+        github: any GitHubFetching = GitHubService(),
+        persistence: any Persisting = PersistenceManager.shared,
+        notifications: any NotificationSending = NotificationService.shared
+    ) {
+        self.github = github
+        self.persistence = persistence
+        self.notifications = notifications
+    }
 
     func check(config: CheckConfig) async -> CheckOutcome {
         let cache = await persistence.getCache()
@@ -46,10 +57,10 @@ struct PRCheckCoordinator {
 
             if config.enableNotifications && !newPRs.isEmpty {
                 for pr in newPRs {
-                    await NotificationService.shared.sendNewPRNotification(pr: pr)
+                    await notifications.sendNewPRNotification(pr: pr)
                 }
                 if newPRs.count > 1 {
-                    await NotificationService.shared.sendSummaryNotification(count: filtered.active.count)
+                    await notifications.sendSummaryNotification(count: filtered.active.count)
                 }
             }
 
@@ -59,7 +70,7 @@ struct PRCheckCoordinator {
 
             if config.enableNotifications && !newlyReady.isEmpty {
                 for pr in newlyReady {
-                    await NotificationService.shared.sendReadyToMergeNotification(pr: pr)
+                    await notifications.sendReadyToMergeNotification(pr: pr)
                 }
             }
 

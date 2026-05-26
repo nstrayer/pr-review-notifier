@@ -67,7 +67,7 @@ struct PRCheckResult {
 
 // MARK: - Service
 
-struct GitHubService {
+struct GitHubService: GitHubFetching {
 
     private let session: URLSession
 

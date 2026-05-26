@@ -19,13 +19,22 @@ final class PRViewModel {
 
     private var pollingTask: Task<Void, Never>?
     private var isCheckInFlight = false
-    private let coordinator = PRCheckCoordinator()
-    private let persistence = PersistenceManager.shared
+    private let coordinator: any PRChecking
+    private let persistence: any Persisting
+    private let notifications: any NotificationSending
 
     // MARK: - Init
 
-    init(settings: AppSettings) {
+    init(
+        settings: AppSettings,
+        coordinator: any PRChecking = PRCheckCoordinator(),
+        persistence: any Persisting = PersistenceManager.shared,
+        notifications: any NotificationSending = NotificationService.shared
+    ) {
         self.settings = settings
+        self.coordinator = coordinator
+        self.persistence = persistence
+        self.notifications = notifications
     }
 
     // MARK: - Computed
@@ -76,7 +85,7 @@ final class PRViewModel {
         hasErrors = cache.lastCheckHadErrors
         errors = cache.lastCheckErrors
 
-        await NotificationService.shared.requestPermission()
+        await notifications.requestPermission()
         startPolling()
     }
 
@@ -127,6 +136,7 @@ final class PRViewModel {
             errors = []
             hasErrors = false
             await persistence.saveSampleState(
+                dismissedPRIDs: nil,
                 pendingPRs: activePRs,
                 authoredPRs: authoredPRs,
                 checkTime: lastCheckTime
@@ -272,7 +282,8 @@ final class PRViewModel {
         await persistence.saveSampleState(
             dismissedPRIDs: cleanedDismissedIDs != storedDismissedIDs ? cleanedDismissedIDs : nil,
             pendingPRs: self.activePRs,
-            authoredPRs: sampleAuthored
+            authoredPRs: sampleAuthored,
+            checkTime: nil
         )
     }
 }

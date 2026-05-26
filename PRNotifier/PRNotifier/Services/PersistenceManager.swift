@@ -1,6 +1,6 @@
 import Foundation
 
-actor PersistenceManager {
+actor PersistenceManager: Persisting {
     static let shared = PersistenceManager()
 
     private let fileURL: URL

@@ -3,7 +3,7 @@ import UserNotifications
 import AppKit
 
 @MainActor
-final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
+final class NotificationService: NSObject, UNUserNotificationCenterDelegate, NotificationSending {
     static let shared = NotificationService()
 
     private override init() {
