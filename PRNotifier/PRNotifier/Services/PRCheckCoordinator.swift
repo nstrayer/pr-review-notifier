@@ -82,6 +82,10 @@ struct PRCheckCoordinator {
                     .intersection(authoredPRIDs)
             }
 
+            let allReposFailed = result.hasErrors
+                && result.pendingPRs.isEmpty
+                && result.authoredPRs.isEmpty
+
             return CheckOutcome(
                 activePRs: filtered.active,
                 dismissedPRs: filtered.dismissed,
@@ -89,7 +93,7 @@ struct PRCheckCoordinator {
                 errors: result.errors,
                 hasErrors: result.hasErrors,
                 checkTime: checkTime,
-                isTotalFailure: false
+                isTotalFailure: allReposFailed
             )
         } catch {
             let checkError = CheckError(
